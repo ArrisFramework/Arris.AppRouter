@@ -1,6 +1,6 @@
 <?php
 
-namespace Arris\AppRouter;
+namespace Arris;
 
 use Psr\Log\LoggerInterface;
 

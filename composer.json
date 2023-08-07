@@ -10,19 +10,20 @@
     },
     "autoload": {
         "psr-4": {
-            "Arris\\AppRouter\\": "src/"
+            "Arris\\": "src/"
         }
     },
     "authors": [
         {
             "name": "Karel Wintersky",
-            "email": "karel.wintersky@yandex.ru"
+            "email": "karel.wintersky@gmail.com"
         }
     ],
     "require": {
         "php": ">=7.4",
         "nikic/fast-route": "^1.3",
-        "psr/log": "^1.1"
+        "psr/log": "^1.1",
+        "ext-json": "*"
     },
     "suggest": {
         "karelwintersky/arris": "Arris µFramework core",

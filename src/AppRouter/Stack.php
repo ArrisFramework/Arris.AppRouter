@@ -1,6 +1,6 @@
 <?php
 
-namespace Arris\AppRouter\Core;
+namespace Arris\AppRouter;
 
 use RuntimeException;
 

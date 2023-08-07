@@ -1,6 +1,6 @@
 <?php
 
-namespace Arris\AppRouter\Exceptions;
+namespace Arris\Exceptions;
 
 use Throwable;
 

@@ -1,11 +1,12 @@
 <?php
 
-namespace Arris\AppRouter;
+namespace Arris;
 
-use Arris\AppRouter\Core\Stack;
-use Arris\AppRouter\Exceptions\AppRouterHandlerError;
-use Arris\AppRouter\Exceptions\AppRouterMethodNotAllowedException;
-use Arris\AppRouter\Exceptions\AppRouterNotFoundException;
+use Arris\AppRouter\Stack;
+use Arris\Exceptions\AppRouterHandlerError;
+use Arris\Exceptions\AppRouterMethodNotAllowedException;
+use Arris\Exceptions\AppRouterNotFoundException;
+use FastRoute\Dispatcher;
 use FastRoute\RouteCollector;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -22,7 +23,7 @@ class AppRouter implements AppRouterInterface
     ];
 
     /**
-     * @var \FastRoute\Dispatcher
+     * @var Dispatcher
      */
     private static $dispatcher;
 
@@ -83,7 +84,7 @@ class AppRouter implements AppRouterInterface
     public static function init(LoggerInterface $logger = null, array $options = [])
     {
         self::$logger
-            = (!is_null($logger) && $logger instanceof LoggerInterface)
+            = ($logger instanceof LoggerInterface)
             ? $logger
             : new NullLogger();
 
@@ -412,7 +413,7 @@ class AppRouter implements AppRouterInterface
         //@todo: никак невозможно выяснить, какому правилу сопоставлен обработанный URL. Имеет ли смысл создать issue для пакета, который не обновлялся много лет?
 
         // dispatch errors
-        if ($state === \FastRoute\Dispatcher::NOT_FOUND) {
+        if ($state === Dispatcher::NOT_FOUND) {
             // URL or URI? https://ru.wikipedia.org/wiki/URI
             throw new AppRouterNotFoundException("URL not found", 404, null, [
                 'method'    =>  self::$httpMethod,
@@ -420,7 +421,7 @@ class AppRouter implements AppRouterInterface
             ]);
         }
 
-        if ($state === \FastRoute\Dispatcher::METHOD_NOT_ALLOWED) {
+        if ($state === Dispatcher::METHOD_NOT_ALLOWED) {
             throw new AppRouterMethodNotAllowedException("Method " . self::$httpMethod . " not allowed for URI " . self::$uri, 405, null, [
                 'uri'       => self::$uri,
                 'method'    => self::$httpMethod,
@@ -496,10 +497,10 @@ class AppRouter implements AppRouterInterface
     /**
      * @throws \JsonException
      */
-    private static function jsonize($data)
+    /*private static function jsonize($data)
     {
         return json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR);
-    }
+    }*/
 
     /**
      * Выясняет, является ли передаваемый аргумент допустимым хэндлером
@@ -509,7 +510,7 @@ class AppRouter implements AppRouterInterface
      *
      * @return bool
      */
-    public static function is_handler($handler = null, $validate_handlers = false)
+    public static function is_handler($handler = null, bool $validate_handlers = false): bool
     {
         if (is_null($handler)) {
             return false;
