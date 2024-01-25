@@ -110,7 +110,7 @@ interface AppRouterInterface
     public static function dispatch();
 
 
-    public static function getRouter($name = '');
+    public static function getRouter($name = '', string $default = '/');
 
     /**
      * Возвращает информацию о текущем роутинге

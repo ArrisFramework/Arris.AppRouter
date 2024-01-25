@@ -8,8 +8,9 @@ use RuntimeException;
  * Class Stack
  * @package Arris\Utils
  *
- * Примитивный стэк, правильнее использовать https://github.com/php-ds/polyfill/blob/master/src/Stack.php
- * из пакета `php-ds/php-ds`
+ * Примитивный стэк.
+ *
+ * Основное отличие от обычного стэка - pop на пустом стэке кидает не исключение, а null
  */
 
 class Stack
@@ -68,7 +69,7 @@ class Stack
     public function pop()
     {
         if ($this->count() === 0) {
-            throw new RuntimeException('Stack is empty');
+            return null;
         }
 
         return array_pop($this->stack);

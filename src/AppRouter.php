@@ -133,8 +133,8 @@ class AppRouter implements AppRouterInterface
             'namespace'     =>  self::$current_namespace,
             'name'          =>  $name,
             'middlewares'   =>  [
-                'before'        =>  self::$current_middleware_before,
-                'after'         =>  self::$current_middleware_after
+                'before'    =>  clone self::$stack_middlewares_before,
+                'after'     =>  clone self::$stack_middlewares_after
             ]
         ];
     }
@@ -152,8 +152,8 @@ class AppRouter implements AppRouterInterface
             'namespace'     =>  self::$current_namespace,
             'name'          =>  $name,
             'middlewares'   =>  [
-                'before'        =>  self::$current_middleware_before,
-                'after'         =>  self::$current_middleware_after
+                'before'    =>  clone self::$stack_middlewares_before,
+                'after'     =>  clone self::$stack_middlewares_after
             ]
         ];
     }
@@ -171,8 +171,8 @@ class AppRouter implements AppRouterInterface
             'namespace'     =>  self::$current_namespace,
             'name'          =>  $name,
             'middlewares'   =>  [
-                'before'        =>  self::$current_middleware_before,
-                'after'         =>  self::$current_middleware_after
+                'before'    =>  clone self::$stack_middlewares_before,
+                'after'     =>  clone self::$stack_middlewares_after
             ]
         ];
     }
@@ -190,8 +190,8 @@ class AppRouter implements AppRouterInterface
             'namespace'     =>  self::$current_namespace,
             'name'          =>  $name,
             'middlewares'   =>  [
-                'before'        =>  self::$current_middleware_before,
-                'after'         =>  self::$current_middleware_after
+                'before'    =>  clone self::$stack_middlewares_before,
+                'after'     =>  clone self::$stack_middlewares_after
             ]
         ];
     }
@@ -209,8 +209,8 @@ class AppRouter implements AppRouterInterface
             'namespace'     =>  self::$current_namespace,
             'name'          =>  $name,
             'middlewares'   =>  [
-                'before'        =>  self::$current_middleware_before,
-                'after'         =>  self::$current_middleware_after
+                'before'    =>  clone self::$stack_middlewares_before,
+                'after'     =>  clone self::$stack_middlewares_after
             ]
         ];
     }
@@ -228,8 +228,8 @@ class AppRouter implements AppRouterInterface
             'namespace'     =>  self::$current_namespace,
             'name'          =>  $name,
             'middlewares'   =>  [
-                'before'        =>  self::$current_middleware_before,
-                'after'         =>  self::$current_middleware_after
+                'before'    =>  clone self::$stack_middlewares_before,
+                'after'     =>  clone self::$stack_middlewares_after
             ]
         ];
     }
@@ -249,18 +249,9 @@ class AppRouter implements AppRouterInterface
                 'namespace'     =>  self::$current_namespace,
                 'name'          =>  $name,
                 'middlewares'   =>  [
-                    'before'        =>  self::$current_middleware_before,
-                    'after'         =>  self::$current_middleware_after
+                    'before'    =>  clone self::$stack_middlewares_before,
+                    'after'     =>  clone self::$stack_middlewares_after
                 ]
-            ];
-
-
-            self::$rules[] = [
-                'httpMethod'    =>  $method,
-                'route'         =>  self::$current_prefix . $route,
-                'handler'       =>  $handler,
-                'namespace'     =>  self::$current_namespace,
-                'name'          =>  $name
             ];
         }
 
@@ -296,8 +287,8 @@ class AppRouter implements AppRouterInterface
                 'namespace'     =>  self::$current_namespace,
                 'name'          =>  $name,
                 'middlewares'   =>  [
-                    'before'        =>  self::$current_middleware_before,
-                    'after'         =>  self::$current_middleware_after
+                    'before'    =>  clone self::$stack_middlewares_before,
+                    'after'     =>  clone self::$stack_middlewares_after
                 ]
             ];
         }
@@ -342,7 +333,10 @@ class AppRouter implements AppRouterInterface
             self::$current_middleware_after = $options['after'];
         }
 
-        $callback();
+        //@todo: check is_callable + is_closure?
+        if (!is_null($callback)) {
+            $callback();
+        }
 
         if (array_key_exists('after', $options) && self::is_handler($options['after'])) {
             self::$current_middleware_after = self::$stack_middlewares_after->pop();
@@ -364,23 +358,24 @@ class AppRouter implements AppRouterInterface
      * Возвращает информацию о роуте по имени
      *
      * @param string $name
+     * @param string $default
      * @return string|array
      */
-    public static function getRouter($name = '')
+    public static function getRouter($name = '', string $default = '/')
     {
         if ($name === '*') {
             return self::$route_names;
         }
 
         if ($name === '') {
-            return '/';
+            return $default;
         }
 
         if (array_key_exists($name, self::$route_names)) {
             return self::$route_names[ $name ];
         }
 
-        return '/';
+        return $default;
     }
 
     /**
@@ -436,20 +431,43 @@ class AppRouter implements AppRouterInterface
         $rules_key = self::$httpMethod . ' ' . self::$uri;
         $rule = array_key_exists($rules_key, $rules) ? $rules[$rules_key] : [];
 
-        $actor = self::compileHandler($handler);
+        /**
+         * @var Stack $middlewares_before
+         */
+        $middlewares_before = $rule['middlewares']['before'];
+        if (!is_null($middlewares_before) && !$middlewares_before->isEmpty()) {
+            do {
+                $middleware_handler = $middlewares_before->pop();
 
-        if (self::is_handler($rule['middlewares']['before'])){
-            $before = self::compileHandler($rule['middlewares']['before']);
-            $before();
-            unset($before);
+                if (!is_null($middleware_handler)) {
+                    $before = self::compileHandler($middleware_handler, 'middleware:before');
+
+                    call_user_func_array($before, [ self::$uri, self::$routeInfo ] );
+
+                    unset($before);
+                }
+            } while (!$middlewares_before->isEmpty());
         }
 
+        $actor = self::compileHandler($handler);
         call_user_func_array($actor, $method_parameters);
 
-        if (self::is_handler($rule['middlewares']['after'])){
-            $after = self::compileHandler($rule['middlewares']['after']);
-            $after();
-            unset($after);
+        /**
+         * @var Stack $middlewares_after
+         */
+        $middlewares_after = $rule['middlewares']['before'];
+        if (!is_null($middlewares_after) && !$middlewares_after->isEmpty()) {
+            do {
+                $middleware_handler = $middlewares_after->pop();
+
+                if (!is_null($middleware_handler)) {
+                    $after = self::compileHandler($middleware_handler, 'middleware:before');
+
+                    call_user_func_array($after, [ self::$uri, self::$routeInfo ] );
+
+                    unset($after);
+                }
+            } while (!$middlewares_after->isEmpty());
         }
 
         unset($state, $rules, $rules_key, $rule);
@@ -493,14 +511,6 @@ class AppRouter implements AppRouterInterface
 
         return $rules;
     }
-
-    /**
-     * @throws \JsonException
-     */
-    /*private static function jsonize($data)
-    {
-        return json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR);
-    }*/
 
     /**
      * Выясняет, является ли передаваемый аргумент допустимым хэндлером
