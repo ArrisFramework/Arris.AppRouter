@@ -81,6 +81,8 @@ class AppRouter implements AppRouterInterface
 
     private static $current_middleware_after = null;
 
+    private static $middlewares_namespace = '';
+
     public static function init(LoggerInterface $logger = null, array $options = [])
     {
         self::$logger
@@ -120,14 +122,28 @@ class AppRouter implements AppRouterInterface
         self::$current_namespace = $namespace;
     }
 
+    /**
+     * @todo: Указывает нэймспейс для миддлваров-посредников
+     *
+     * @param string $namespace
+     * @return void
+     */
+    public static function setMiddlewaresNamespace(string $namespace = '')
+    {
+        self::$middlewares_namespace = $namespace;
+    }
+
     public static function get($route, $handler, $name = null)
     {
+        $httpMethod = 'GET';
+        $key = $httpMethod . ' ' . self::$current_namespace . '\\' . $handler;
+
         if (!is_null($name)) {
             self::$route_names[$name] = self::$current_prefix . $route;
         }
 
-        self::$rules[] = [
-            'httpMethod'    =>  'GET',
+        self::$rules[ $key ] = [
+            'httpMethod'    =>  $httpMethod,
             'route'         =>  self::$current_prefix . $route,
             'handler'       =>  $handler,
             'namespace'     =>  self::$current_namespace,
@@ -141,12 +157,15 @@ class AppRouter implements AppRouterInterface
 
     public static function post($route, $handler, $name = null)
     {
+        $httpMethod = 'POST';
+        $key = $httpMethod . ' ' . self::$current_namespace . '\\' . $handler;
+
         if (!is_null($name)) {
             self::$route_names[$name] = self::$current_prefix . $route;
         }
 
-        self::$rules[] = [
-            'httpMethod'    =>  'POST',
+        self::$rules[ $key ] = [
+            'httpMethod'    =>  $httpMethod,
             'route'         =>  self::$current_prefix . $route,
             'handler'       =>  $handler,
             'namespace'     =>  self::$current_namespace,
@@ -160,12 +179,15 @@ class AppRouter implements AppRouterInterface
 
     public static function put($route, $handler, $name = null)
     {
+        $httpMethod = 'PUT';
+        $key = $httpMethod . ' ' . self::$current_namespace . '\\' . $handler;
+
         if (!is_null($name)) {
             self::$route_names[$name] = self::$current_prefix . $route;
         }
 
-        self::$rules[] = [
-            'httpMethod'    =>  'PUT',
+        self::$rules[ $key ] = [
+            'httpMethod'    =>  $httpMethod,
             'route'         =>  self::$current_prefix . $route,
             'handler'       =>  $handler,
             'namespace'     =>  self::$current_namespace,
@@ -179,12 +201,15 @@ class AppRouter implements AppRouterInterface
 
     public static function patch($route, $handler, $name = null)
     {
+        $httpMethod = 'PATCH';
+        $key = $httpMethod . ' ' . self::$current_namespace . '\\' . $handler;
+
         if (!is_null($name)) {
             self::$route_names[$name] = self::$current_prefix . $route;
         }
 
-        self::$rules[] = [
-            'httpMethod'    =>  'PATCH',
+        self::$rules[ $key ] = [
+            'httpMethod'    =>  $httpMethod,
             'route'         =>  self::$current_prefix . $route,
             'handler'       =>  $handler,
             'namespace'     =>  self::$current_namespace,
@@ -198,12 +223,15 @@ class AppRouter implements AppRouterInterface
 
     public static function delete($route, $handler, $name = null)
     {
+        $httpMethod = 'DELETE';
+        $key = $httpMethod . ' ' . self::$current_namespace . '\\' . $handler;
+
         if (!is_null($name)) {
             self::$route_names[$name] = self::$current_prefix . $route;
         }
 
-        self::$rules[] = [
-            'httpMethod'    =>  'DELETE',
+        self::$rules[ $key ] = [
+            'httpMethod'    =>  $httpMethod,
             'route'         =>  self::$current_prefix . $route,
             'handler'       =>  $handler,
             'namespace'     =>  self::$current_namespace,
@@ -217,12 +245,15 @@ class AppRouter implements AppRouterInterface
 
     public static function head($route, $handler, $name = null)
     {
+        $httpMethod = 'HEAD';
+        $key = $httpMethod . ' ' . self::$current_namespace . '\\' . $handler;
+
         if (!is_null($name)) {
             self::$route_names[$name] = self::$current_prefix . $route;
         }
 
-        self::$rules[] = [
-            'httpMethod'    =>  'HEAD',
+        self::$rules[ $key ] = [
+            'httpMethod'    =>  $httpMethod,
             'route'         =>  self::$current_prefix . $route,
             'handler'       =>  $handler,
             'namespace'     =>  self::$current_namespace,
@@ -242,7 +273,9 @@ class AppRouter implements AppRouterInterface
                 self::$route_names[$name] = self::$current_prefix . $route;
             }
 
-            self::$rules[] = [
+            $key = $method . ' ' . self::$current_namespace . '\\' . $handler;
+
+            self::$rules[ $key ] = [
                 'httpMethod'    =>  $method,
                 'route'         =>  self::$current_prefix . $route,
                 'handler'       =>  $handler,
@@ -254,33 +287,20 @@ class AppRouter implements AppRouterInterface
                 ]
             ];
         }
-
-        /*self::$rules[] = [
-            'httpMethod'    =>  self::ALL_HTTP_METHODS,
-            'route'         =>  self::$current_prefix . $route,
-            'handler'       =>  $handler,
-            'namespace'     =>  self::$current_namespace,
-            'name'          =>  $name
-        ];*/
-
-        /*self::$rules[] = [
-            'httpMethod'    =>  '*',
-            'route'         =>  $route,
-            'handler'       =>  $handler,
-            'namespace'     =>  self::$current_namespace,
-            'name'          =>  $name
-        ];*/
     }
 
 
     public static function addRoute($httpMethod, $route, $handler, $name = null)
     {
         foreach ((array) $httpMethod as $method) {
+            $httpMethod = $method;
+            $key = $httpMethod . ' ' . self::$current_namespace . '\\' . $handler;
+
             if (!is_null($name)) {
                 self::$route_names[$name] = self::$current_prefix . $route;
             }
 
-            self::$rules[] = [
+            self::$rules[ $key ] = [
                 'httpMethod'    =>  $method,
                 'route'         =>  self::$current_prefix . $route,
                 'handler'       =>  $handler,
@@ -325,12 +345,18 @@ class AppRouter implements AppRouterInterface
             self::$current_namespace = self::$stack_namespace->implode('\\');
         }
 
+        $group_have_before_middleware = false;
         if (array_key_exists('before', $options) && self::is_handler($options['before'])) {
             self::$stack_middlewares_before->push($options['before']);
             self::$current_middleware_before = $options['before'];
+            $group_have_before_middleware = true;
+        }
 
+        $group_have_after_middleware = false;
+        if (array_key_exists('after', $options) && self::is_handler($options['after'])) {
             self::$stack_middlewares_after->push($options['after']);
             self::$current_middleware_after = $options['after'];
+            $group_have_after_middleware = true;
         }
 
         //@todo: check is_callable + is_closure?
@@ -338,9 +364,12 @@ class AppRouter implements AppRouterInterface
             $callback();
         }
 
-        if (array_key_exists('after', $options) && self::is_handler($options['after'])) {
-            self::$current_middleware_after = self::$stack_middlewares_after->pop();
+        if ($group_have_before_middleware) {
             self::$current_middleware_before = self::$stack_middlewares_before->pop();
+        }
+
+        if ($group_have_after_middleware) {
+            self::$current_middleware_after = self::$stack_middlewares_after->pop();
         }
 
         if ($_setNamespace) {
@@ -405,11 +434,8 @@ class AppRouter implements AppRouterInterface
 
         list($state, $handler, $method_parameters) = $routeInfo;
 
-        //@todo: никак невозможно выяснить, какому правилу сопоставлен обработанный URL. Имеет ли смысл создать issue для пакета, который не обновлялся много лет?
-
         // dispatch errors
         if ($state === Dispatcher::NOT_FOUND) {
-            // URL or URI? https://ru.wikipedia.org/wiki/URI
             throw new AppRouterNotFoundException("URL not found", 404, null, [
                 'method'    =>  self::$httpMethod,
                 'uri'       =>  self::$uri
@@ -424,12 +450,9 @@ class AppRouter implements AppRouterInterface
             ]);
         }
 
-        // нужно получить параметры правила для обработанного роута! (к сожалению, не получится получить именно для ОБРАБОТАННОГО, только для объявленного)
-        // т.е., если в роуте есть опциональные части или плейсхолдеры - роут работать не будет.
-
         $rules = self::getRoutingRules();
-        $rules_key = self::$httpMethod . ' ' . self::$uri;
-        $rule = array_key_exists($rules_key, $rules) ? $rules[$rules_key] : [];
+        $rules_key = self::$httpMethod . ' ' . $handler;
+        $rule = array_key_exists($rules_key, self::$rules) ? self::$rules[$rules_key] : [];
 
         /**
          * @var Stack $middlewares_before
@@ -484,15 +507,33 @@ class AppRouter implements AppRouterInterface
     }
 
     /**
-     * Возвращает список объявленных роутов: [ 'method route' => [ handler, namespace, name ]
+     * Возвращает список объявленных роутов: [ 'method: handler' => [ handler, namespace, name ]
+     *
+     * На самом деле такой сложный метод не нужен.
+     * Нужно просто писать self::$routes нормально
+     * Единственный смысл - это строчка
+     *
+     * 'handler'   =>  is_callable($record['handler']) ? "Closure" : $record['handler'],
+     *
+     * И, кажется, дублирующиеся роуты невозможны?
+     *
+     * Хотя стоп, если мы будем записывать правила в self::$routes по ключу - то невозможны будут
+     * дублирующиеся роуты (разные урлы, но одинаковые обработчики). При этом метод ОБЯЗАТЕЛЕН,
+     * иначе не будет работать
+     * AppRouter::get('url', method);
+     * AppRouter::post('url', method);
+     *
+     * то есть на самом деле в правила надо писать:
+     * METHOD namespace\handler
      *
      * @return array
      */
     public static function getRoutingRules(): array
     {
+        /*
         $rules = [];
         foreach (self::$rules as $record) {
-            $key = is_array($record['httpMethod']) ? "ANY {$record['route']}" : "{$record['httpMethod']} {$record['route']}";
+            $key = $record['namespace'] . '\\' . $record['handler'];
 
             if (array_key_exists($key, $rules)) {
                 $key .= " [ DUPLICATE ROUTE " . microtime(false) . ' ]';
@@ -509,7 +550,8 @@ class AppRouter implements AppRouterInterface
             ];
         }
 
-        return $rules;
+        return $rules;*/
+        return self::$rules;
     }
 
     /**

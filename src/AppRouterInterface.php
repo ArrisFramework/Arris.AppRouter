@@ -23,6 +23,14 @@ interface AppRouterInterface
     public static function setDefaultNamespace(string $namespace = '');
 
     /**
+     * @todo: Указывает нэймспейс для миддлваров-посредников
+     *
+     * @param string $namespace
+     * @return void
+     */
+    public static function setMiddlewaresNamespace(string $namespace = '');
+
+    /**
      * Helper method GET
      *
      * @param $route
