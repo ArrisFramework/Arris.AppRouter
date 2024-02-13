@@ -115,6 +115,8 @@ class AppRouter implements AppRouterInterface
         self::$stack_middlewares_before = new Stack();
 
         self::$stack_middlewares_after = new Stack();
+
+        // self::$stack_aliases = new Stack();
     }
 
     public static function setDefaultNamespace(string $namespace = '')
@@ -401,7 +403,10 @@ class AppRouter implements AppRouterInterface
         }
 
         if (array_key_exists($name, self::$route_names)) {
-            return self::$route_names[ $name ];
+            $route = self::$route_names[ $name ];
+            // убрать необязательные группу из роута `[...]`
+            $route = preg_replace('/\[.+\]$/', '', $route);
+            return $route;
         }
 
         return $default;

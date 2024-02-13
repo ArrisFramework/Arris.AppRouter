@@ -75,32 +75,3 @@ AppRouter::group([], function (){
 
 
 ```
-
-
-# todo
-
-Реализовать хелпер `router()`:
-
-```php
-
-// роутер
-// 4 аргумента: строка, строка, хэндлер, имя
-router('GET', '/', function (){}, 'root'); 
-
-// 3 аргумента: массив, closure, массив от нуля до двух ключей
-router(['prefix'=>'/test'], function (){
-
-    // 3-4 аргумента: строка, строка, коллбэк/хэндлер, [строка]
-    router('GET', '/ajax', 'Test::ajax');
-
-    // 2-3 аргумента: строка, коллбэк/хэндлер, [строка]
-    router('GET /ajaxKeys', 'Test::ajaxKeys');
-
-}, [
-    'before'    =>  handler,
-    'after'     =>  handler 
-]);
-
-
-
-```
