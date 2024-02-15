@@ -536,6 +536,19 @@ class AppRouter implements AppRouterInterface
             return false;
         } elseif ($handler instanceof \Closure) {
             return true;
+        } elseif (is_array($handler)) {
+            // [ \Path\To\Class:class, "method" ]
+
+            $class = $handler[0];
+            $method = $handler[1] ?: '__invoke';
+
+            if ($validate_handlers && !class_exists($class)) {
+                return false;
+            }
+
+            if ($validate_handlers && !method_exists($class, $method)) {
+                return false;
+            }
         } elseif (strpos($handler, '@') > 0) {
             // dynamic method
             list($class, $method) = explode('@', $handler, 2);
@@ -562,19 +575,6 @@ class AppRouter implements AppRouterInterface
             }
 
             return true;
-        } elseif (is_array($handler)) {
-            // [ \Path\To\Class:class, "method" ]
-
-            $class = $handler[0];
-            $method = $handler[1] ?: '__invoke';
-
-            if ($validate_handlers && !class_exists($class)) {
-                return false;
-            }
-
-            if ($validate_handlers && !method_exists($class, $method)) {
-                return false;
-            }
         }
         else {
             // function
@@ -598,6 +598,17 @@ class AppRouter implements AppRouterInterface
     {
         if ($handler instanceof \Closure) {
             $actor = $handler;
+        } elseif (is_array($handler)) {
+            // [ \Path\To\Class:class, "method" ]
+
+            $class = $handler[0];
+            $method = $handler[1] ?: '__invoke';
+
+            self::checkClassExists($class);
+            self::checkMethodExists($class, $method);
+
+            $actor = [ $class, $method ];
+
         } elseif (strpos($handler, '@') > 0) {
             // dynamic method
             list($class, $method) = explode('@', $handler, 2);
@@ -616,18 +627,7 @@ class AppRouter implements AppRouterInterface
 
             $actor = [ $class, $method ];
 
-        } elseif (is_array($handler)) {
-            // [ \Path\To\Class:class, "method" ]
-
-            $class = $handler[0];
-            $method = $handler[1] ?: '__invoke';
-
-            self::checkClassExists($class);
-            self::checkMethodExists($class, $method);
-
-            $actor = [ $class, $method ];
-
-        } else {
+        }  else {
             // function
             self::checkFunctionExists($handler);
 
