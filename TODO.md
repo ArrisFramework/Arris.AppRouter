@@ -20,11 +20,17 @@ router(['prefix'=>'/test'], function (){
 ]);
 ```
 
-# Handler `::class`
+# Handler `::class` -- сделано, но требуются тесты!
 
 Сделать обработку: если в хэндлер роута передана строчка `MyClass::class` - то должен быть вызван 
 
 `MyClass->handler(Request $request)`
+
+поправка: будет вызван `__invoke()`
+
+- задавать это в конфигурации?
+
+
 
 # AppRouter::group -- aliases
 
@@ -60,5 +66,7 @@ public function name($name): ILoadableRoute
     return $this->setName($name);
 }
 ```
+
+# Embed FastRouter code to class... 
 
 
