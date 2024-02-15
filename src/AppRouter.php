@@ -104,6 +104,10 @@ class AppRouter implements AppRouterInterface
             self::setDefaultNamespace($options['namespace']);
         }
 
+        if (array_key_exists('middlewareNamespace', $options)) {
+            self::setMiddlewaresNamespace($options['middlewareNamespace']);
+        }
+
         if (array_key_exists('prefix', $options)) {
             self::$current_prefix = $options['prefix'];
         }
@@ -607,7 +611,7 @@ class AppRouter implements AppRouterInterface
             self::checkClassExists($class);
             self::checkMethodExists($class, $method);
 
-            $actor = [ $class, $method ];
+            $actor = [ new $class, $method ];
 
         } elseif (strpos($handler, '@') > 0) {
             // dynamic method

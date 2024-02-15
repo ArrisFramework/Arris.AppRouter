@@ -44,7 +44,7 @@ AppRouter::group([
     AppRouter::get('/map/{map_alias}', 'MapsController@view_map_fullscreen');
 });
 ```
-Подстановка регулярки делается на стадии маппинга роута. Если алиас не найден - кидаем исключение.
+Подстановка регулярки делается на стадии маппинга роута. Если алиас не найден - кидаем исключение (какое?)
 
 # Chaining methods for appRouter:
 
@@ -68,5 +68,36 @@ public function name($name): ILoadableRoute
 ```
 
 # Embed FastRouter code to class... 
+
+# Есть проблема с method_exists()
+
+```
+Undocumented change since 7.4.0 is released:
+
+<?php
+class Foo 
+{ 
+    private function privateMethodTest() 
+    {
+        
+    } 
+} 
+
+class Bar extends Foo 
+{
+    
+} 
+
+var_dump(method_exists(Bar::class, 'privateMethodTest'));
+// PHP 7.4: bool(false)
+// PHP 7.3: bool(true)
+
+var_dump(is_callable(Bar::class, 'privateMethodTest'));
+// PHP 7.3: bool(true)
+// PHP 7.4: bool(true)
+```
+
+Вероятно, нужно проверять через рефлексии, isMethodPublic() ? 
+
 
 
