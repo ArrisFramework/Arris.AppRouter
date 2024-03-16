@@ -16,20 +16,12 @@ use RuntimeException;
 class Stack
 {
     /**
-     * @var int
-     */
-    private $limit;
-
-    /**
      * @var array
      */
     private array $stack;
 
-    public function __construct($values = null, $limit = null)
+    public function __construct($values = null)
     {
-        // stack can only contain this many items
-        $this->limit = $limit;
-
         // initialize the stack
         $this->stack = [];
 
@@ -51,11 +43,6 @@ class Stack
      */
     public function push(...$items)
     {
-        // trap for stack overflow
-        if (!is_null($this->limit) && ($this->count() >= $this->limit)) {
-            throw new RunTimeException('Stack is full!');
-        }
-
         foreach ($items as $i) {
             array_push($this->stack, $i);
         }
