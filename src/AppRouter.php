@@ -737,6 +737,7 @@ class AppRouter implements AppRouterInterface
      *
      * @param $httpMethod
      * @param $handler
+     * @param bool $append_namespace
      * @return string
      */
     private static function getInternalRuleKey($httpMethod, $handler, $append_namespace = true): string
@@ -753,9 +754,9 @@ class AppRouter implements AppRouterInterface
             $class = $handler[0];
             $method = $handler[1] ?: '__invoke';
 
-            $internal_name = "{$namespace}\\{$class}@{$method}";
+            $internal_name = "{$namespace}{$class}@{$method}";
         } elseif (\is_string($handler)) {
-            $internal_name = "{$namespace}\\{$handler}";
+            $internal_name = "{$namespace}{$handler}";
         } else {
             // function by name
             $internal_name = $handler;
