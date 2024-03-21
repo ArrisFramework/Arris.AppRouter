@@ -538,7 +538,7 @@ class AppRouter implements AppRouterInterface
         }
 
         $rules = self::getRoutingRules();
-        $rules_key = self::getInternalRuleKey(self::$httpMethod, $handler);
+        $rules_key = self::getInternalRuleKey(self::$httpMethod, $handler, false);
         $rule = \array_key_exists($rules_key, $rules) ? $rules[$rules_key] : [];
 
         /**
@@ -559,7 +559,7 @@ class AppRouter implements AppRouterInterface
             } while (!$middlewares_before->isEmpty());
         }
 
-        $actor = self::compileHandler($handler);
+        $actor = self::compileHandler($handler, 'main');
 
         \call_user_func_array($actor, $method_parameters);
 
@@ -696,7 +696,9 @@ class AppRouter implements AppRouterInterface
 
         } elseif (\strpos($handler, '@') > 0) {
             // dynamic method
-            list($class, $method) = \explode('@', $handler, 2);
+            $exploded = \explode('@', $handler, 2);
+            $class = $exploded[0];
+            $method = $exploded[1] ?: '__invoke';
 
             self::checkClassExists($class);
             self::checkMethodExists($class, $method);
@@ -705,7 +707,9 @@ class AppRouter implements AppRouterInterface
 
         } elseif (\strpos($handler, '::')) {
             // static method
-            list($class, $method) = \explode('::', $handler, 2);
+            $exploded = \explode('::', $handler, 2);
+            $class = $exploded[0];
+            $method = $exploded[1] ?: '';
 
             self::checkClassExists($class, true);
             self::checkMethodExists($class, $method, true);
@@ -735,9 +739,13 @@ class AppRouter implements AppRouterInterface
      * @param $handler
      * @return string
      */
-    private static function getInternalRuleKey($httpMethod, $handler): string
+    private static function getInternalRuleKey($httpMethod, $handler, $append_namespace = true): string
     {
-        $namespace = self::$current_namespace;
+        $namespace = '';
+        if ($append_namespace) {
+            $namespace = self::$current_namespace;
+            $namespace = "{$namespace}\\";
+        }
 
         if ($handler instanceof \Closure) {
             $internal_name = self::getClosureInternalName($handler);
@@ -786,8 +794,19 @@ class AppRouter implements AppRouterInterface
      */
     private static function checkMethodExists($class, $method, bool $is_static = false)
     {
+        $is_static = $is_static ? 'static ' : '';
+
+        if (empty($method)) {
+            self::$logger->error("Method can't be empty at {$is_static}class {$class}", [ self::$uri, self::$httpMethod, $class ]);
+            throw new AppRouterHandlerError("Method can't be empty at {$is_static}class {$class}", 500, null, [
+                'uri'       =>  self::$uri,
+                'method'    =>  self::$httpMethod,
+                'info'      =>  self::$routeInfo
+            ]);
+        }
+
         if (!\method_exists($class, $method)){
-            $is_static = $is_static ? 'Static' : '';
+
             self::$logger->error("Method {$method} not declared at {$is_static} {$class} class", [ self::$uri, self::$httpMethod, $class ]);
             throw new AppRouterHandlerError("Method {$method} not declared at {$is_static} class {$class}", 500, null, [
                 'uri'       =>  self::$uri,
@@ -829,10 +848,6 @@ class AppRouter implements AppRouterInterface
      */
     private static function getClosureInternalName($closure): string
     {
-        // microtime() НЕ НУЖЕН, ПОТОМУ ЧТО ЭТОТ МЕТОД ВЫЗЫВАЕТСЯ В РАЗНОЕ ВРЕМЯ!
-        // СНАЧАЛА НА ДОБАВЛЕНИЯ ПРАВИЛА В СТЭК
-        // А ПОТОМ ПРИ DISPATCH()
-        // $name = "[" . /*microtime() .*/ "] Closure(";
         $name = "[] Closure(";
 
         try {
