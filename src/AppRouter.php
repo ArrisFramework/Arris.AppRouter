@@ -116,6 +116,15 @@ class AppRouter implements AppRouterInterface
      */
     private static $middlewares_namespace = '';
 
+    /**
+     * Отладочная опция: присоединять namespace к именам ключей при вызове метода dispatch()
+     *
+     * Зачем? Была какая-то бага с неймспейсами... а я забыл детали.
+     *
+     * @var bool
+     */
+    private static bool $debug_appendNamespaceOnDispatch = true;
+
     public function __construct()
     {
     }
@@ -151,6 +160,10 @@ class AppRouter implements AppRouterInterface
 
         if (\array_key_exists('routeReplacePattern', $options)) {
             self::$routeReplacePattern = $options['routeReplacePattern'];
+        }
+
+        if (\array_key_exists('appendNamespaceOnDispatch', $options)) {
+            self::$debug_appendNamespaceOnDispatch = (bool)$options['appendNamespaceOnDispatch'];
         }
 
         self::$stack_prefix = new Stack();
@@ -538,7 +551,7 @@ class AppRouter implements AppRouterInterface
         }
 
         $rules = self::getRoutingRules();
-        $rules_key = self::getInternalRuleKey(self::$httpMethod, $handler, false);
+        $rules_key = self::getInternalRuleKey(self::$httpMethod, $handler, self::$debug_appendNamespaceOnDispatch);
         $rule = \array_key_exists($rules_key, $rules) ? $rules[$rules_key] : [];
 
         /**
@@ -634,6 +647,9 @@ class AppRouter implements AppRouterInterface
             if ($validate_handlers && !\method_exists($class, $method)) {
                 return false;
             }
+
+            return true;
+
         } elseif (strpos($handler, '@') > 0) {
             // dynamic method
             list($class, $method) = \explode('@', $handler, 2);
@@ -740,7 +756,7 @@ class AppRouter implements AppRouterInterface
      * @param bool $append_namespace
      * @return string
      */
-    private static function getInternalRuleKey($httpMethod, $handler, $append_namespace = true): string
+    private static function getInternalRuleKey($httpMethod, $handler, bool $append_namespace = true): string
     {
         $namespace = '';
         if ($append_namespace) {

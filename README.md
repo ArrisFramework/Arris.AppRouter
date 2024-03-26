@@ -15,7 +15,20 @@
 
 ```php
 
-AppRouter::init(AppLogger::scope('routing'));
+AppRouter::init(AppLogger::scope('routing'), [
+// опции
+]);
+```
+
+Опции:
+
+- `defaultNamespace` - неймспейс по-умолчанию
+- `middlewareNamespace` - неймспейс посредников по умолчанию (не реализовано)
+- `prefix` - текущий префикс URL (аналогично поведению для групп)
+- `routeReplacePattern` - ?
+- `appendNamespaceOnDispatch` (true) - Отладочная опция: присоединять namespace к именам ключей при вызове метода dispatch(). Зачем? Была какая-то бага с неймспейсами, но я "починил" и забыл детали.
+
+```php
 
 AppRouter::get('/', function () {
     CLIConsole::say('Call from /');
@@ -70,8 +83,4 @@ AppRouter::group([], function (){
 
     });
 });
-
-
-
-
 ```
