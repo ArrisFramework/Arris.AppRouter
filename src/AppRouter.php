@@ -125,12 +125,19 @@ class AppRouter implements AppRouterInterface
      */
     private static bool $debug_appendNamespaceOnDispatch = true;
 
+    /**
+     * @var string[]
+     */
+    public static array $route_parts;
+
     public function __construct()
     {
     }
 
     public static function init(LoggerInterface $logger = null, array $options = [])
     {
+        self::$route_parts = \preg_split("/\/+/", \preg_replace("/(\?.*)/", "", trim($_SERVER['REQUEST_URI'], '/')));
+
         self::$logger
             = ($logger instanceof LoggerInterface)
             ? $logger
@@ -557,7 +564,12 @@ class AppRouter implements AppRouterInterface
         /**
          * @var Stack $middlewares_before
          */
-        $middlewares_before = $rule['middlewares']['before'];
+        /*$middlewares_before
+            = array_key_exists('middlewares', $rule) && array_key_exists('before', $rule['middlewares'])
+            ? $rule['middlewares']['before']
+            : null;*/
+        $middlewares_before = $rule['middlewares']['before'] ?? null;
+
         if (!\is_null($middlewares_before) && !$middlewares_before->isEmpty()) {
             do {
                 $middleware_handler = $middlewares_before->pop();
@@ -579,7 +591,12 @@ class AppRouter implements AppRouterInterface
         /**
          * @var Stack $middlewares_after
          */
-        $middlewares_after = $rule['middlewares']['after'];
+        /*$middlewares_after
+            = array_key_exists('middlewares', $rule) && array_key_exists('after', $rule['middlewares'])
+            ? $rule['middlewares']['after']
+            : null;*/
+        $middlewares_after = $rule['middlewares']['after'] ?? null;
+
         if (!\is_null($middlewares_after) && !$middlewares_after->isEmpty()) {
             do {
                 $middleware_handler = $middlewares_after->pop();
@@ -873,11 +890,11 @@ class AppRouter implements AppRouterInterface
                 // создаем статичную функцию и сразу вызываем
                 (static function ($r) {
                     return
-                        array_map(
+                        \array_map(
                         // обработчик
                             static function($v)
                             {
-                                return is_object($v) ? $v->name : $v;
+                                return \is_object($v) ? $v->name : $v;
                             },
                             // входной массив
                             \array_merge(
