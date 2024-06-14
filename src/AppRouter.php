@@ -539,7 +539,11 @@ class AppRouter implements AppRouterInterface
         // Fetch method and URI from somewhere
         self::$routeInfo = $routeInfo = (self::$dispatcher)->dispatch(self::$httpMethod, self::$uri);
 
-        list($state, $handler, $method_parameters) = $routeInfo;
+        // list($state, $handler, $method_parameters) = $routeInfo;
+        // PHP8+ good practice:
+        $state = $routeInfo[0];
+        $handler = $routeInfo[1] ?? [];
+        $method_parameters = $routeInfo[2] ?? [];
 
         // dispatch errors
         if ($state === Dispatcher::NOT_FOUND) {
