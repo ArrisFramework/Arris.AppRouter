@@ -10,8 +10,12 @@
     },
     "autoload": {
         "psr-4": {
-            "Arris\\": "src/"
-        }
+            "Arris\\": "src/",
+            "Arris\\AppRouter\\": "src/AppRouter"
+        },
+        "files": [
+            "src/AppRouter/FastRoute/functions.php"
+        ]
     },
     "authors": [
         {
@@ -21,8 +25,7 @@
     ],
     "require": {
         "php": ">=7.4 || 8.*",
-        "nikic/fast-route": "^1.3",
-        "psr/log": "^1.1"
+        "psr/log": "^1 | ^2 | ^3"
     },
     "require-dev": {
         "karelwintersky/arris": "*"

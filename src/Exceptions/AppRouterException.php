@@ -17,14 +17,13 @@ class AppRouterException extends AppRouterCommonException
      *
      * @param string $message
      * @param int $code
-     * @param Throwable|null $previous
      * @param array $info
      */
-    public function __construct(string $message = "", int $code = 0 , Throwable $previous = null, array $info = [])
+    public function __construct(string $message = "", int $code = 0,  array $info = [])
     {
         $this->_info = $info;
 
-        parent::__construct($message, $code, $previous);
+        parent::__construct($message, $code, $info);
     }
 
     /**

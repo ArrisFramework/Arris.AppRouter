@@ -2,12 +2,12 @@
 
 namespace Arris;
 
+use Arris\AppRouter\FastRoute\Dispatcher;
+use Arris\AppRouter\FastRoute\RouteCollector;
 use Arris\AppRouter\Stack;
 use Arris\Exceptions\AppRouterHandlerError;
 use Arris\Exceptions\AppRouterMethodNotAllowedException;
 use Arris\Exceptions\AppRouterNotFoundException;
-use FastRoute\Dispatcher;
-use FastRoute\RouteCollector;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -146,7 +146,7 @@ class AppRouter implements AppRouterInterface
         self::$httpMethod = $_SERVER['REQUEST_METHOD'];
 
         $uri = $_SERVER['REQUEST_URI'];
-        if (false !== $pos = strpos($uri, '?')) {
+        if (false !== $pos = \strpos($uri, '?')) {
             $uri = \substr($uri, 0, $pos);
         }
         self::$uri = \rawurldecode($uri);
@@ -206,7 +206,7 @@ class AppRouter implements AppRouterInterface
             return;
         }
 
-        $key = self::getInternalRuleKey('GET', $handler);
+        $key = self::getInternalRuleKey('GET', $handler, $route);
 
         if (!\is_null($name)) {
             self::$route_names[$name] = self::$current_prefix . $route;
@@ -231,7 +231,7 @@ class AppRouter implements AppRouterInterface
             return;
         }
 
-        $key = self::getInternalRuleKey('POST', $handler);
+        $key = self::getInternalRuleKey('POST', $handler, $route);
 
         if (!\is_null($name)) {
             self::$route_names[$name] = self::$current_prefix . $route;
@@ -256,7 +256,7 @@ class AppRouter implements AppRouterInterface
             return;
         }
 
-        $key = self::getInternalRuleKey('PUT', $handler);
+        $key = self::getInternalRuleKey('PUT', $handler, $route);
 
         if (!\is_null($name)) {
             self::$route_names[$name] = self::$current_prefix . $route;
@@ -281,7 +281,7 @@ class AppRouter implements AppRouterInterface
             return;
         }
 
-        $key = self::getInternalRuleKey('PATCH', $handler);
+        $key = self::getInternalRuleKey('PATCH', $handler, $route);
 
         if (!\is_null($name)) {
             self::$route_names[$name] = self::$current_prefix . $route;
@@ -306,7 +306,7 @@ class AppRouter implements AppRouterInterface
             return;
         }
 
-        $key = self::getInternalRuleKey('DELETE', $handler);
+        $key = self::getInternalRuleKey('DELETE', $handler, $route);
 
         if (!\is_null($name)) {
             self::$route_names[$name] = self::$current_prefix . $route;
@@ -331,7 +331,7 @@ class AppRouter implements AppRouterInterface
             return;
         }
 
-        $key = self::getInternalRuleKey('HEAD', $handler);
+        $key = self::getInternalRuleKey('HEAD', $handler, $route);
 
         if (!\is_null($name)) {
             self::$route_names[$name] = self::$current_prefix . $route;
@@ -362,7 +362,7 @@ class AppRouter implements AppRouterInterface
                 self::$route_names["{$method}.{$name}"] = self::$current_prefix . $route;
             }
 
-            $key = self::getInternalRuleKey($method, $handler);
+            $key = self::getInternalRuleKey($method, $handler, $route);
 
             self::$rules[ $key ] = [
                 'httpMethod'    =>  $method,
@@ -386,7 +386,7 @@ class AppRouter implements AppRouterInterface
 
         foreach ((array)$httpMethod as $method) {
             $httpMethod = $method;
-            $key = self::getInternalRuleKey($httpMethod, $handler);
+            $key = self::getInternalRuleKey($httpMethod, $handler, $route);
 
             if (!\is_null($name)) {
                 self::$route_names[$name] = self::$current_prefix . $route;
@@ -406,7 +406,7 @@ class AppRouter implements AppRouterInterface
         }
 
 
-        if (!is_null($name)) {
+        if (!\is_null($name)) {
             self::$route_names[$name] = self::$current_prefix . $route;
         }
     }
@@ -525,7 +525,7 @@ class AppRouter implements AppRouterInterface
 
     public static function dispatch()
     {
-        self::$dispatcher = \FastRoute\simpleDispatcher(function (RouteCollector $r) {
+        self::$dispatcher = \Arris\AppRouter\FastRoute\simpleDispatcher(function (RouteCollector $r) {
             foreach (self::$rules as $rule) {
                 $handler
                     = (\is_string($rule['handler']) && !empty($rule['namespace']))
@@ -541,20 +541,29 @@ class AppRouter implements AppRouterInterface
 
         // list($state, $handler, $method_parameters) = $routeInfo;
         // PHP8+ good practice:
-        $state = $routeInfo[0];
+        $state = $routeInfo[0]; // тут ВСЕГДА что-то есть
         $handler = $routeInfo[1] ?? [];
         $method_parameters = $routeInfo[2] ?? [];
 
+        // Handler пустой или некорректный
+        if (empty($handler)) {
+            throw new AppRouterHandlerError("Handler not found or empty", 500, [
+                'uri'       =>  self::$uri,
+                'method'    =>  self::$httpMethod,
+                'info'      =>  self::$routeInfo
+            ]);
+        }
+
         // dispatch errors
         if ($state === Dispatcher::NOT_FOUND) {
-            throw new AppRouterNotFoundException("URL not found", 404, null, [
+            throw new AppRouterNotFoundException("URL not found", 404, [
                 'method'    =>  self::$httpMethod,
                 'uri'       =>  self::$uri
             ]);
         }
 
         if ($state === Dispatcher::METHOD_NOT_ALLOWED) {
-            throw new AppRouterMethodNotAllowedException("Method " . self::$httpMethod . " not allowed for URI " . self::$uri, 405, null, [
+            throw new AppRouterMethodNotAllowedException("Method " . self::$httpMethod . " not allowed for URI " . self::$uri, 405, [
                 'uri'       => self::$uri,
                 'method'    => self::$httpMethod,
                 'info'      => self::$routeInfo
@@ -639,6 +648,10 @@ class AppRouter implements AppRouterInterface
     }
 
     /**
+     * @todo: объединить is_handler и compileHandler - они выполняют одну и ту же работу, но сначала делается is_handler, а потом compileHandler перед выполнением
+     * Надо сразу компилировать хэндлэр сразу с проверкой и кидать исключение на раннем этапе. Возможно, вообще на этапе прописывания роута!
+     *
+     *
      * Выясняет, является ли передаваемый аргумент допустимым хэндлером
      *
      * @todo: переделать код так, чтобы хэндлер `\Path\To\Class::method` вызывал не сразу статический класс,
@@ -656,6 +669,10 @@ class AppRouter implements AppRouterInterface
         } elseif ($handler instanceof \Closure) {
             return true;
         } elseif (\is_array($handler)) {
+            if (empty($handler)) {
+                return false;
+            }
+
             // [ \Path\To\Class:class, "method" ]
 
             $class = $handler[0];
@@ -706,7 +723,7 @@ class AppRouter implements AppRouterInterface
 
             return true;
         }
-        return false;
+
     } // is_handler()
 
     /**
@@ -721,6 +738,10 @@ class AppRouter implements AppRouterInterface
         if ($handler instanceof \Closure) {
             $actor = $handler;
         } elseif (\is_array($handler)) {
+            if (empty($handler)) {
+                return [];
+            }
+
             // [ \Path\To\Class:class, "method" ]
 
             $class = $handler[0];
@@ -774,10 +795,11 @@ class AppRouter implements AppRouterInterface
      *
      * @param $httpMethod
      * @param $handler
+     * @param $route
      * @param bool $append_namespace
      * @return string
      */
-    private static function getInternalRuleKey($httpMethod, $handler, bool $append_namespace = true): string
+    private static function getInternalRuleKey($httpMethod, $handler, $route, bool $append_namespace = true): string
     {
         $namespace = '';
         if ($append_namespace) {
@@ -788,12 +810,16 @@ class AppRouter implements AppRouterInterface
         if ($handler instanceof \Closure) {
             $internal_name = self::getClosureInternalName($handler);
         } elseif (\is_array($handler)) {
-            $class = $handler[0];
-            $method = $handler[1] ?: '__invoke';
+
+            // хэндлер может быть массивом, но пустым. Вообще, это ошибка, поэтому генерим имя на основе md5 роута и метода.
+            $class = $handler[0] ?? \md5(self::$httpMethod . ':' . self::$current_prefix . $route);
+            $method = $handler[1] ?? '__invoke';
 
             $internal_name = "{$namespace}{$class}@{$method}";
         } elseif (\is_string($handler)) {
             $internal_name = "{$namespace}{$handler}";
+        } elseif (\is_null($handler)) {
+            return \md5(self::$httpMethod . ':' . self::$current_prefix . $route);
         } else {
             // function by name
             $internal_name = $handler;
@@ -814,7 +840,7 @@ class AppRouter implements AppRouterInterface
         if (!\class_exists($class)){
             $is_static = $is_static ? 'Static' : '';
             self::$logger->error("{$is_static} Class {$class} not defined.", [ self::$uri, self::$httpMethod, $class ]);
-            throw new AppRouterHandlerError("{$is_static} Class {$class} not defined", 500, null, [
+            throw new AppRouterHandlerError("{$is_static} Class {$class} not defined", 500, [
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
                 'info'      =>  self::$routeInfo
@@ -835,8 +861,8 @@ class AppRouter implements AppRouterInterface
         $is_static = $is_static ? 'static ' : '';
 
         if (empty($method)) {
-            self::$logger->error("Method can't be empty at {$is_static}class {$class}", [ self::$uri, self::$httpMethod, $class ]);
-            throw new AppRouterHandlerError("Method can't be empty at {$is_static}class {$class}", 500, null, [
+            self::$logger->error("Method can't be empty at {$is_static}{$class} class", [ self::$uri, self::$httpMethod, $class ]);
+            throw new AppRouterHandlerError("Method can't be empty at {$is_static} class {$class}", 500, [
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
                 'info'      =>  self::$routeInfo
@@ -844,9 +870,8 @@ class AppRouter implements AppRouterInterface
         }
 
         if (!\method_exists($class, $method)){
-
-            self::$logger->error("Method {$method} not declared at {$is_static} {$class} class", [ self::$uri, self::$httpMethod, $class ]);
-            throw new AppRouterHandlerError("Method {$method} not declared at {$is_static} class {$class}", 500, null, [
+            self::$logger->error("Method `{$method}` not declared at {$is_static}{$class} class", [ self::$uri, self::$httpMethod, $class ]);
+            throw new AppRouterHandlerError("Method `{$method}` not declared at {$is_static}class {$class}", 500, [
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
                 'info'      =>  self::$routeInfo
@@ -865,7 +890,7 @@ class AppRouter implements AppRouterInterface
     {
         if (!\function_exists($handler)){
             self::$logger->error("Handler function {$handler} not found", [ self::$uri, self::$httpMethod, $handler ]);
-            throw new AppRouterHandlerError("Handler function {$handler} not found", 500, null, [
+            throw new AppRouterHandlerError("Handler function {$handler} not found", 500, [
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
                 'info'      =>  self::$routeInfo

@@ -25,9 +25,9 @@ class Stack
         // initialize the stack
         $this->stack = [];
 
-        if (is_null($values)) {
+        if (\is_null($values)) {
             $values = [];
-        } else if (!is_array($values)) {
+        } else if (!\is_array($values)) {
             $values = array($values);
         }
 
@@ -44,7 +44,7 @@ class Stack
     public function push(...$items)
     {
         foreach ($items as $i) {
-            array_push($this->stack, $i);
+            \array_push($this->stack, $i);
         }
     }
 
@@ -59,7 +59,7 @@ class Stack
             return null;
         }
 
-        return array_pop($this->stack);
+        return \array_pop($this->stack);
     }
 
     /**
@@ -74,7 +74,7 @@ class Stack
 
     public function count(): int
     {
-        return count($this->stack);
+        return \count($this->stack);
     }
 
     /**
@@ -100,12 +100,15 @@ class Stack
 
     public function toArray():array
     {
-        return array_reverse($this->stack);
+        return \array_reverse($this->stack);
     }
 
     public function implode($separator = '', $inverse_order = false):string
     {
-        return $inverse_order ? implode($separator, array_reverse($this->stack)) : implode($separator, $this->stack);
+        return
+            $inverse_order
+            ? \implode($separator, \array_reverse($this->stack))
+            : \implode($separator, $this->stack);
     }
 
 }
