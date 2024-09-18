@@ -8,6 +8,14 @@ class AppRouterCommonException extends \RuntimeException
 {
     protected array $_info;
 
+    protected $uri = '';
+
+    protected $httpMethod = 'ANY';
+
+    protected $routeInfo = [];
+
+    protected $routeRule = [];
+
     /**
      * Exception constructor
      *
@@ -18,6 +26,10 @@ class AppRouterCommonException extends \RuntimeException
     public function __construct(string $message = "", int $code = 0 , array $info = [])
     {
         $this->_info = $info;
+        $this->uri = $info['uri'] ?: '';
+        $this->httpMethod = $info['method'] ?: '';
+        $this->routeInfo = $info['info'] ?: [];
+        $this->routeRule = $info['rule'] ?: [];
 
         parent::__construct($message, $code, null);
     }
@@ -30,12 +42,13 @@ class AppRouterCommonException extends \RuntimeException
      */
     public function getInfo($key = null)
     {
-        return is_null($key) ? $this->_info : (array_key_exists($key, $this->_info) ? $this->_info[$key] : null);
+        return is_null($key) ? $this->_info : (\array_key_exists($key, $this->_info) ? $this->_info[$key] : null);
     }
 
     public function getError()
     {
-        return 'Exception thrown from [' . $this->getFile() . '] with message: [' . $this->getMessage() . '] at line # ' . $this->getLine();
+        $backtrace = $this->routeRule['backtrace'] ?: [ 'file' => $this->getFile(), 'line' => $this->getLine() ];
+        return 'AppRouter throws exception: ' . $this->getMessage() . ', that declared in ' . $backtrace['file'] . ' at line ' . $backtrace['line'];
     }
 
 }

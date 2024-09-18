@@ -130,6 +130,11 @@ class AppRouter implements AppRouterInterface
      */
     public static array $route_parts;
 
+    /**
+     * @var array Current rule of dispatched route
+     */
+    private static array $routeRule = [];
+
     public function __construct()
     {
     }
@@ -221,7 +226,8 @@ class AppRouter implements AppRouterInterface
             'middlewares'   =>  [
                 'before'    =>  clone self::$stack_middlewares_before,
                 'after'     =>  clone self::$stack_middlewares_after
-            ]
+            ],
+            'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
         ];
     }
 
@@ -246,7 +252,8 @@ class AppRouter implements AppRouterInterface
             'middlewares'   =>  [
                 'before'    =>  clone self::$stack_middlewares_before,
                 'after'     =>  clone self::$stack_middlewares_after
-            ]
+            ],
+            'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
         ];
     }
 
@@ -271,7 +278,8 @@ class AppRouter implements AppRouterInterface
             'middlewares'   =>  [
                 'before'    =>  clone self::$stack_middlewares_before,
                 'after'     =>  clone self::$stack_middlewares_after
-            ]
+            ],
+            'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
         ];
     }
 
@@ -296,7 +304,8 @@ class AppRouter implements AppRouterInterface
             'middlewares'   =>  [
                 'before'    =>  clone self::$stack_middlewares_before,
                 'after'     =>  clone self::$stack_middlewares_after
-            ]
+            ],
+            'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
         ];
     }
 
@@ -321,7 +330,8 @@ class AppRouter implements AppRouterInterface
             'middlewares'   =>  [
                 'before'    =>  clone self::$stack_middlewares_before,
                 'after'     =>  clone self::$stack_middlewares_after
-            ]
+            ],
+            'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
         ];
     }
 
@@ -346,7 +356,8 @@ class AppRouter implements AppRouterInterface
             'middlewares'   =>  [
                 'before'    =>  clone self::$stack_middlewares_before,
                 'after'     =>  clone self::$stack_middlewares_after
-            ]
+            ],
+            'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
         ];
     }
 
@@ -373,7 +384,8 @@ class AppRouter implements AppRouterInterface
                 'middlewares'   =>  [
                     'before'    =>  clone self::$stack_middlewares_before,
                     'after'     =>  clone self::$stack_middlewares_after
-                ]
+                ],
+                'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
             ];
         }
     }
@@ -392,6 +404,8 @@ class AppRouter implements AppRouterInterface
                 self::$route_names[$name] = self::$current_prefix . $route;
             }
 
+            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0];
+
             self::$rules[ $key ] = [
                 'httpMethod'    =>  $method,
                 'route'         =>  self::$current_prefix . $route,
@@ -401,7 +415,8 @@ class AppRouter implements AppRouterInterface
                 'middlewares'   =>  [
                     'before'    =>  clone self::$stack_middlewares_before,
                     'after'     =>  clone self::$stack_middlewares_after
-                ]
+                ],
+                'backtrace'     =>  $backtrace
             ];
         }
 
@@ -419,8 +434,7 @@ class AppRouter implements AppRouterInterface
      *      callable 'after' => null<br>
      * ]
      * @param callable|null $callback
-     * @param string $name
-     * @return mixed|void
+     * @return void
      */
     public static function group(array $options = [], callable $callback = null)
     {
@@ -437,15 +451,18 @@ class AppRouter implements AppRouterInterface
             self::$current_namespace = self::$stack_namespace->implode('\\');
         }
 
+        // Проверка is_hander лишняя, поскольку позже, в диспетчере, всё равно выполняется компиляция хэндлера.
+        // Там и кидаются все исключения.
+
         $group_have_before_middleware = false;
-        if (\array_key_exists('before', $options) && self::is_handler($options['before'])) {
+        if (\array_key_exists('before', $options)/* && self::is_handler($options['before'])*/) {
             self::$stack_middlewares_before->push($options['before']);
             self::$current_middleware_before = $options['before'];
             $group_have_before_middleware = true;
         }
 
         $group_have_after_middleware = false;
-        if (\array_key_exists('after', $options) && self::is_handler($options['after'])) {
+        if (\array_key_exists('after', $options)/* && self::is_handler($options['after'])*/) {
             self::$stack_middlewares_after->push($options['after']);
             self::$current_middleware_after = $options['after'];
             $group_have_after_middleware = true;
@@ -507,9 +524,7 @@ class AppRouter implements AppRouterInterface
             }
 
             // убрать необязательные группы из роута `[...]`
-            $route = \preg_replace('/\[.+\]$/', '', $route);
-
-            return $route;
+            return \preg_replace('/\[.+\]$/', '', $route);
         }
 
         return $default;
@@ -518,7 +533,7 @@ class AppRouter implements AppRouterInterface
     /**
      * @return array
      */
-    public static function getRoutersNames()
+    public static function getRoutersNames(): array
     {
         return self::$route_names;
     }
@@ -545,69 +560,74 @@ class AppRouter implements AppRouterInterface
         $handler = $routeInfo[1] ?? [];
         $method_parameters = $routeInfo[2] ?? [];
 
+        // Вычисляем правило, определяющее текущий роут.
+        $rules = self::getRoutingRules();
+        $rules_key = self::getInternalRuleKey(self::$httpMethod, $handler, self::$debug_appendNamespaceOnDispatch);
+        $rule = \array_key_exists($rules_key, $rules) ? $rules[$rules_key] : [];
+        self::$routeRule = $rule;
+
         // Handler пустой или некорректный
         if (empty($handler)) {
             throw new AppRouterHandlerError("Handler not found or empty", 500, [
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
-                'info'      =>  self::$routeInfo
+                'info'      =>  self::$routeInfo,
+                'rule'      =>  self::$routeRule
             ]);
         }
 
         // dispatch errors
         if ($state === Dispatcher::NOT_FOUND) {
             throw new AppRouterNotFoundException("URL not found", 404, [
+                'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
-                'uri'       =>  self::$uri
+                'info'      =>  self::$routeInfo,
+                'rule'      =>  self::$routeRule
             ]);
         }
 
         if ($state === Dispatcher::METHOD_NOT_ALLOWED) {
             throw new AppRouterMethodNotAllowedException("Method " . self::$httpMethod . " not allowed for URI " . self::$uri, 405, [
-                'uri'       => self::$uri,
-                'method'    => self::$httpMethod,
-                'info'      => self::$routeInfo
+                'uri'       =>  self::$uri,
+                'method'    =>  self::$httpMethod,
+                'info'      =>  self::$routeInfo,
+                'rule'      =>  self::$routeRule
             ]);
         }
 
-        $rules = self::getRoutingRules();
-        $rules_key = self::getInternalRuleKey(self::$httpMethod, $handler, self::$debug_appendNamespaceOnDispatch);
-        $rule = \array_key_exists($rules_key, $rules) ? $rules[$rules_key] : [];
-
         /**
+         * Посредники ПЕРЕД
+         *
          * @var Stack $middlewares_before
          */
-        /*$middlewares_before
-            = array_key_exists('middlewares', $rule) && array_key_exists('before', $rule['middlewares'])
-            ? $rule['middlewares']['before']
-            : null;*/
         $middlewares_before = $rule['middlewares']['before'] ?? null;
 
         if (!\is_null($middlewares_before) && !$middlewares_before->isEmpty()) {
+            $middlewares_before = $middlewares_before->reverse(); // инвертируем массив before-middlewares (иначе порядок будет неверный)
+
             do {
                 $middleware_handler = $middlewares_before->pop();
 
                 if (!\is_null($middleware_handler)) {
                     $before = self::compileHandler($middleware_handler, 'middleware:before');
 
-                    \call_user_func_array($before, [ self::$uri, self::$routeInfo ] );
+                    \call_user_func_array($before, [ self::$uri, self::$routeInfo ] ); // если вот сейчас передан пустой хэндлер - никакой ошибки не будет - миддлвар просто не вызовется
 
                     unset($before);
                 }
             } while (!$middlewares_before->isEmpty());
         }
 
-        $actor = self::compileHandler($handler, 'main');
-
+        $actor = self::compileHandler($handler);
         \call_user_func_array($actor, $method_parameters);
+        // c PHP8 поведение нужно поменять? Передавать
+        // self::$uri, self::$routeInfo как именованные параметры и первым параметром собственно $method_parameters
 
         /**
+         * Посредники ПОСЛЕ
+         *
          * @var Stack $middlewares_after
          */
-        /*$middlewares_after
-            = array_key_exists('middlewares', $rule) && array_key_exists('after', $rule['middlewares'])
-            ? $rule['middlewares']['after']
-            : null;*/
         $middlewares_after = $rule['middlewares']['after'] ?? null;
 
         if (!\is_null($middlewares_after) && !$middlewares_after->isEmpty()) {
@@ -648,14 +668,11 @@ class AppRouter implements AppRouterInterface
     }
 
     /**
-     * @todo: объединить is_handler и compileHandler - они выполняют одну и ту же работу, но сначала делается is_handler, а потом compileHandler перед выполнением
-     * Надо сразу компилировать хэндлэр сразу с проверкой и кидать исключение на раннем этапе. Возможно, вообще на этапе прописывания роута!
-     *
-     *
      * Выясняет, является ли передаваемый аргумент допустимым хэндлером
      *
-     * @todo: переделать код так, чтобы хэндлер `\Path\To\Class::method` вызывал не сразу статический класс,
-     * а сначала анализировал метод через рефлексию
+     * Неоптимальное поведение, скорее всего нужен единый метод, принимающий аргументы
+     * - throw_on_error BOOL
+     * - log_on_error BOOL
      *
      * @param $handler
      * @param bool $validate_handlers
@@ -727,22 +744,20 @@ class AppRouter implements AppRouterInterface
     } // is_handler()
 
     /**
-     * Компилирует хэндлер из строчки, замыкания или массива [класс, метод] в действующий хэндлер
-     * с отловом ошибок несуществования роута
+     * Проверяет хэндлер на корректность. Сходен по функционалу с compile
      *
      * @param $handler
-     * @return array|\Closure
+     * @return bool
      */
-    private static function compileHandler($handler)
+    public static function validateHandler($handler): bool
     {
         if ($handler instanceof \Closure) {
-            $actor = $handler;
+            return true;
         } elseif (\is_array($handler)) {
-            if (empty($handler)) {
-                return [];
-            }
-
             // [ \Path\To\Class:class, "method" ]
+            if (empty($handler)) {
+                return false;
+            }
 
             $class = $handler[0];
             $method = $handler[1] ?: '__invoke';
@@ -750,7 +765,7 @@ class AppRouter implements AppRouterInterface
             self::checkClassExists($class);
             self::checkMethodExists($class, $method);
 
-            $actor = [ new $class, $method ];
+            return true;
 
         } elseif (\strpos($handler, '@') > 0) {
             // dynamic method
@@ -761,7 +776,7 @@ class AppRouter implements AppRouterInterface
             self::checkClassExists($class);
             self::checkMethodExists($class, $method);
 
-            $actor = [ new $class, $method ];
+            return true;
 
         } elseif (\strpos($handler, '::')) {
             // static method
@@ -772,17 +787,15 @@ class AppRouter implements AppRouterInterface
             self::checkClassExists($class, true);
             self::checkMethodExists($class, $method, true);
 
-            $actor = [ $class, $method ];
+            return true;
 
         }  else {
-            // function
-            self::checkFunctionExists($handler);
-
-            $actor = $handler;
+            return self::checkFunctionExists($handler);
         }
 
-        return $actor;
+        return false;
     }
+
 
     /**
      * Генерирует имя внутреннего ключа для массива именованных роутов
@@ -828,6 +841,13 @@ class AppRouter implements AppRouterInterface
         return "{$httpMethod} {$internal_name}";
     }
 
+    public static function check($class, $method)
+    {
+        $reflection = new \ReflectionClass($class);
+
+        return $reflection->hasMethod($method) && $reflection->getMethod($method)->isPublic();
+    }
+
     /**
      * Проверяет существование класса или кидает исключение AppRouterHandlerError
      *
@@ -835,7 +855,7 @@ class AppRouter implements AppRouterInterface
      * @param bool $is_static
      * @return void
      */
-    private static function checkClassExists($class, bool $is_static = false)
+    public static function checkClassExists($class, bool $is_static = false)
     {
         if (!\class_exists($class)){
             $is_static = $is_static ? 'Static' : '';
@@ -843,7 +863,8 @@ class AppRouter implements AppRouterInterface
             throw new AppRouterHandlerError("{$is_static} Class {$class} not defined", 500, [
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
-                'info'      =>  self::$routeInfo
+                'info'      =>  self::$routeInfo,
+                'rule'      =>  self::$routeRule
             ]);
         }
     }
@@ -856,7 +877,7 @@ class AppRouter implements AppRouterInterface
      * @param bool $is_static
      * @return void
      */
-    private static function checkMethodExists($class, $method, bool $is_static = false)
+    public static function checkMethodExists($class, $method, bool $is_static = false)
     {
         $is_static = $is_static ? 'static ' : '';
 
@@ -865,16 +886,18 @@ class AppRouter implements AppRouterInterface
             throw new AppRouterHandlerError("Method can't be empty at {$is_static} class {$class}", 500, [
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
-                'info'      =>  self::$routeInfo
+                'info'      =>  self::$routeInfo,
+                'rule'      =>  self::$routeRule
             ]);
         }
 
         if (!\method_exists($class, $method)){
-            self::$logger->error("Method `{$method}` not declared at {$is_static}{$class} class", [ self::$uri, self::$httpMethod, $class ]);
-            throw new AppRouterHandlerError("Method `{$method}` not declared at {$is_static}class {$class}", 500, [
+            self::$logger->error("Method {$method} not declared at {$is_static}{$class} class", [ self::$uri, self::$httpMethod, $class ]);
+            throw new AppRouterHandlerError("Method {$method} not declared at {$is_static}class {$class}", 500, [
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
-                'info'      =>  self::$routeInfo
+                'info'      =>  self::$routeInfo,
+                'rule'      =>  self::$routeRule
             ]);
         }
     }
@@ -883,20 +906,21 @@ class AppRouter implements AppRouterInterface
      * Проверяет существование функции с указанным именем или кидает исключение AppRouterHandlerError
      *
      * @param $handler
-     * @return void
+     * @return bool
      * @throws AppRouterHandlerError
      */
-    private static function checkFunctionExists($handler)
+    public static function checkFunctionExists($handler): bool
     {
         if (!\function_exists($handler)){
             self::$logger->error("Handler function {$handler} not found", [ self::$uri, self::$httpMethod, $handler ]);
             throw new AppRouterHandlerError("Handler function {$handler} not found", 500, [
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
-                'info'      =>  self::$routeInfo
+                'info'      =>  self::$routeInfo,
+                'rule'      =>  self::$routeRule
             ]);
         }
-
+        return true;
     }
 
     /**
@@ -909,7 +933,7 @@ class AppRouter implements AppRouterInterface
      * @param $closure
      * @return string
      */
-    private static function getClosureInternalName($closure): string
+    public static function getClosureInternalName($closure): string
     {
         $name = "[] Closure(";
 
@@ -943,6 +967,73 @@ class AppRouter implements AppRouterInterface
         }
 
         return $name;
+    }
+
+    /**
+     * Компилирует хэндлер из строчки, замыкания или массива [класс, метод] в действующий хэндлер
+     * с отловом ошибок несуществования роута
+     *
+     * @param $handler
+     * @return array|\Closure
+     */
+    public static function compileHandler($handler)
+    {
+        if ($handler instanceof \Closure) {
+            $actor = $handler;
+        } elseif (\is_array($handler)) {
+            // [ \Path\To\Class:class, "method" ]
+            if (empty($handler)) {
+                return [];
+            }
+
+            $class = $handler[0];
+            $method = $handler[1] ?: '__invoke';
+
+            self::checkClassExists($class);
+            self::checkMethodExists($class, $method);
+
+            $actor = [ new $class(), $method ]; //@todo: вот тут нужно передавать в конструктор аргументы
+
+        } elseif (\strpos($handler, '@') > 0) {
+            // dynamic method
+            $exploded = \explode('@', $handler, 2);
+            $class = $exploded[0];
+            $method = $exploded[1] ?: '__invoke';
+
+            self::checkClassExists($class);
+            self::checkMethodExists($class, $method);
+
+            $actor = [ new $class, $method ];
+
+        } elseif (\strpos($handler, '::')) {
+            // static method
+            $exploded = \explode('::', $handler, 2);
+            $class = $exploded[0];
+            $method = $exploded[1] ?: '';
+
+            self::checkClassExists($class, true);
+            self::checkMethodExists($class, $method, true);
+
+            $actor = [ $class, $method ];
+
+        }  else {
+            // function
+            self::checkFunctionExists($handler);
+
+            $actor = $handler;
+        }
+
+        return $actor;
+    }
+
+
+
+    private static function explode(string $data = '',
+                                    string $separator = ':',
+                                    int    $limit = 2,
+                                           $default = null): array
+    {
+        return array_pad(explode($separator, $data), $limit, $default);
     }
 
 }

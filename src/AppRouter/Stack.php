@@ -13,7 +13,7 @@ use RuntimeException;
  * Основное отличие от обычного стэка - pop на пустом стэке кидает не исключение, а null
  */
 
-class Stack
+final class Stack
 {
     /**
      * @var array
@@ -34,6 +34,11 @@ class Stack
         foreach ($values as $value) {
             $this->push($value);
         }
+    }
+
+    public function reverse(): Stack
+    {
+        return new self(\array_reverse($this->stack));
     }
 
     /**
