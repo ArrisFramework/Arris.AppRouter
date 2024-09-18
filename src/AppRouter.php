@@ -30,7 +30,7 @@ class AppRouter implements AppRouterInterface
     /**
      * @var array
      */
-    private static array $rules;
+    private static array $rules = [];
 
     /**
      * @var string
@@ -50,17 +50,17 @@ class AppRouter implements AppRouterInterface
     /**
      * @var string
      */
-    private static string $uri;
+    private static string $uri = '';
 
     /**
      * @var array
      */
-    public static array $route_names;
+    public static array $route_names = [];
 
     /**
      * @var string
      */
-    private static string $current_prefix;
+    private static string $current_prefix = '';
 
     /**
      * Default replace pattern
@@ -74,7 +74,7 @@ class AppRouter implements AppRouterInterface
      *
      * @var array
      */
-    private static array $routeInfo;
+    private static array $routeInfo = [];
 
     /**
      * @var Stack
