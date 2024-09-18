@@ -25,7 +25,7 @@
     ],
     "require": {
         "php": ">=7.4 || 8.*",
-        "psr/log": "^1 | ^2 | ^3"
+        "psr/log": "*"
     },
     "require-dev": {
         "karelwintersky/arris": "*"
