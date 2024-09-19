@@ -43,4 +43,9 @@ class AppRouterNotFoundException extends AppRouterException
     {
         return is_null($key) ? $this->_info : (array_key_exists($key, $this->_info) ? $this->_info[$key] : null);
     }
+
+    public function getError(): string
+    {
+        return sprintf("AppRouter::NotFoundException: URL '%s' not found", $this->getInfo('uri'));
+    }
 }

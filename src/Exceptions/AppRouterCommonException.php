@@ -45,7 +45,7 @@ class AppRouterCommonException extends \RuntimeException
         return is_null($key) ? $this->_info : (\array_key_exists($key, $this->_info) ? $this->_info[$key] : null);
     }
 
-    public function getError()
+    public function getError(): string
     {
         $backtrace = $this->routeRule['backtrace'] ?: [ 'file' => $this->getFile(), 'line' => $this->getLine() ];
         return 'AppRouter throws exception: ' . $this->getMessage() . ', that mentioned in ' . $backtrace['file'] . ' at line ' . $backtrace['line'];

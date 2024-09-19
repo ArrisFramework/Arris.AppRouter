@@ -43,4 +43,9 @@ class AppRouterMethodNotAllowedException extends AppRouterException
     {
         return is_null($key) ? $this->_info : (array_key_exists($key, $this->_info) ? $this->_info[$key] : null);
     }
+
+    public function getError(): string
+    {
+        return sprintf("Method %s not allowed for URI %s", $this->getInfo('method'), $this->getInfo('uri'));
+    }
 }

@@ -575,33 +575,17 @@ class AppRouter implements AppRouterInterface
                     : $rule['handler'];
 
                 $r->addRoute($rule['httpMethod'], $rule['route'], $handler);
+                // единственное решение - это передавать 4-ым параметром $rule, а в методе dispatch совпавшее rule возвращать
+                // причем в совместимой с PHP8 only версии fastroute эта проблема решена. Правда, там вся логика немного другая...
             }
         });
 
         // Fetch method and URI from somewhere
         self::$routeInfo = $routeInfo = (self::$dispatcher)->dispatch(self::$httpMethod, self::$uri);
 
-        // list($state, $handler, $method_parameters) = $routeInfo;
-        // PHP8+ good practice:
         $state = $routeInfo[0]; // тут ВСЕГДА что-то есть
         $handler = $routeInfo[1] ?? [];
         $method_parameters = $routeInfo[2] ?? [];
-
-        // Вычисляем правило, определяющее текущий роут.
-        $rules = self::getRoutingRules();
-        $rules_key = self::getInternalRuleKey(self::$httpMethod, $handler, self::$option_appendNamespaceOnDispatch);
-        $rule = \array_key_exists($rules_key, $rules) ? $rules[$rules_key] : [];
-        self::$routeRule = $rule;
-
-        // Handler пустой или некорректный
-        if (empty($handler)) {
-            throw new AppRouterHandlerError("Handler not found or empty", 500, [
-                'uri'       =>  self::$uri,
-                'method'    =>  self::$httpMethod,
-                'info'      =>  self::$routeInfo,
-                'rule'      =>  self::$routeRule
-            ]);
-        }
 
         // dispatch errors
         if ($state === Dispatcher::NOT_FOUND) {
@@ -609,18 +593,40 @@ class AppRouter implements AppRouterInterface
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
                 'info'      =>  self::$routeInfo,
-                'rule'      =>  self::$routeRule
+                'rule'      =>  [
+                    'backtrace'     =>  \debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
+                ]
             ]);
         }
 
         if ($state === Dispatcher::METHOD_NOT_ALLOWED) {
-            throw new AppRouterMethodNotAllowedException("Method " . self::$httpMethod . " not allowed for URI " . self::$uri, 405, [
+            throw new AppRouterMethodNotAllowedException(sprintf("Method %s not allowed for URI %s", self::$httpMethod, self::$uri), 405, [
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
                 'info'      =>  self::$routeInfo,
                 'rule'      =>  self::$routeRule
             ]);
         }
+
+        // Вычисляем правило, определяющее текущий роут.
+        // и вот тут затык:
+        // 1. Получить rule для роута можно только по ключу из массива правил
+        // 2. но чтобы вычислить имя ключа - нужно знать нэймспейс.
+        // 3. а неймспейс у конкретного роута мы можем узнать только из его правила, потому что на данный момент он какой угодно (и не тот)
+        // ---
+        // И вторая проблема - в правиле для роута может быть указано 'route' => '/auth/2/4[/{id:\d}]', а текущий роут может быть `/auth/2/4`
+        // и он удовлетворяет условию роута, но будет иметь другой internal key.
+        //
+        // и опять тупик.
+        //
+        $rules = self::getRoutingRules();
+        $rules_key = self::getInternalRuleKey(
+            self::$httpMethod,
+            $handler,
+            self::$uri,
+            self::$option_appendNamespaceOnDispatch
+        );
+        self::$routeRule = $rule = \array_key_exists($rules_key, $rules) ? $rules[$rules_key] : [];
 
         /**
          * Посредники ПЕРЕД
@@ -646,7 +652,20 @@ class AppRouter implements AppRouterInterface
         }
 
         $actor = self::compileHandler($handler, false, 'default');
+
+        // Handler пустой или некорректный
+        if (empty($handler)) {
+            throw new AppRouterHandlerError("Handler not found or empty", 500, [
+                'uri'       =>  self::$uri,
+                'method'    =>  self::$httpMethod,
+                'info'      =>  self::$routeInfo,
+                'rule'      =>  self::$routeRule,
+                // 'rule'      =>  [                   'backtrace'     =>  \debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[0] ]
+            ]);
+        }
+
         \call_user_func_array($actor, $method_parameters);
+
         // c PHP8 поведение нужно поменять? Передавать
         // self::$uri, self::$routeInfo как именованные параметры и первым параметром собственно $method_parameters
 
@@ -838,14 +857,21 @@ class AppRouter implements AppRouterInterface
      * @param $handler
      * @param $route
      * @param bool $append_namespace
+     * @param string $force_use_namespace -- если не пусто - будет использован этот неймспейс вместо `self::$current_namespace`. Зачем?
+     * Дело в том, что на этапе диспетчера current_namespace уже может быть пустым, а не тем, что соответствует роуту. Поэтому внутреннее имя будет вычислено неверно.
+     * Поэтому будем передавать в `force_use_namespace` нэймспейс, который идет в $rule['namespace']
      * @return string
      */
-    private static function getInternalRuleKey($httpMethod, $handler, $route, bool $append_namespace = true): string
+    private static function getInternalRuleKey($httpMethod, $handler, $route, bool $append_namespace = true, string $force_use_namespace = ''): string
     {
         $namespace = '';
         if ($append_namespace) {
             $namespace = self::$current_namespace;
             $namespace = "{$namespace}\\";
+        }
+
+        if (!empty($force_use_namespace)) {
+            $namespace = $force_use_namespace;
         }
 
         if ($handler instanceof \Closure) {
@@ -860,7 +886,7 @@ class AppRouter implements AppRouterInterface
         } elseif (\is_string($handler)) {
             $internal_name = "{$namespace}{$handler}";
         } elseif (\is_null($handler)) {
-            return \md5(self::$httpMethod . ':' . self::$current_prefix . $route);
+            return \md5(self::$httpMethod . ':' . self::$current_prefix . $route); // никогда не вызывается, потому что is_null(handler) отсекается выше
         } else {
             // function by name
             $internal_name = $handler;

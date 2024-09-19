@@ -25,23 +25,13 @@ AppRouter::init(AppLogger::scope('routing'), [
 - `defaultNamespace` - неймспейс по-умолчанию
 - `middlewareNamespace` - неймспейс посредников по умолчанию (не реализовано)
 - `prefix` - текущий префикс URL (аналогично поведению для групп)
-- `routeReplacePattern` - ?
-- `appendNamespaceOnDispatch` (true) - Отладочная опция: присоединять namespace к именам ключей при вызове метода dispatch(). Зачем? Была какая-то бага с неймспейсами, но я "починил" и забыл детали.
+- `routeReplacePattern` - ? 
 
 ```php
 
 AppRouter::get('/', function () {
     CLIConsole::say('Call from /');
 }, 'root');
-
-/**
- * ВАЖНО: миддлвары группы не работают, если URL-ы имеют опциональные секции. 
- * 
- * Это происходит потому, что метод dispatch() не возвращает информации о реальном сопоставлении переданного URL и сработавшего правила роутинга.
- * 
- * Переделать это можно, но нужно делать свой форк nikic/fast-route
- * Возможно, нет смысла, и проще взять роутер из slim или взять весь slim
- */
 
 AppRouter::group([
     'prefix' => '/auth', 
