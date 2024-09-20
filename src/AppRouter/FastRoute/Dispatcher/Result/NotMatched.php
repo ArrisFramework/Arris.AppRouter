@@ -16,6 +16,7 @@ final class NotMatched implements ArrayAccess, ResultInterface
         return $offset === 0;
     }
 
+    #[\ReturnTypeWillChange]
     public function offsetGet($offset)
     {
         /*return match ($offset) {

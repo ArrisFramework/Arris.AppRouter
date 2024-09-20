@@ -35,6 +35,7 @@ final class Matched implements ArrayAccess, ResultInterface
         return $offset >= 0 && $offset <= 2;
     }
 
+    #[\ReturnTypeWillChange]
     public function offsetGet($offset)
     {
         switch ($offset) {

@@ -22,6 +22,7 @@ final class MethodNotAllowed implements ArrayAccess, ResultInterface
         return $offset === 0 || $offset === 1;
     }
 
+    #[\ReturnTypeWillChange]
     public function offsetGet($offset)
     {
         /*return match ($offset) {
