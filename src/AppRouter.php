@@ -142,7 +142,7 @@ class AppRouter implements AppRouterInterface
      * В планах: дать возможность указывать нэйспейс для миддлваров, но не реализован. Зачем?
      * @var string
      */
-    private static $middlewares_namespace = '';
+    // private static $middlewares_namespace = '';
 
     /**
      * @var string[]
@@ -154,27 +154,20 @@ class AppRouter implements AppRouterInterface
      */
     private static array $routeRule = [];
 
-    /* ===== Options ===== */
-
     /**
      * Разрешать ли пустые группы (без роутов, но с опциями или миддлварами)
      * @var bool $option_allow_empty_groups
      */
-    private static bool $option_allow_empty_groups = true;
+    private static bool $option_allow_empty_groups = false;
 
     /**
-     * Отладочная опция: присоединять namespace к именам ключей при вызове метода dispatch()
-     *
-     * @var bool
+     * @var bool Разрешать пустые хэндлеры ([])
      */
-    private static bool $option_appendNamespaceOnDispatch = true;
+    private static bool $option_allow_empty_handlers = true;
 
 
-    /* ======================================================================================= */
-
-
-    public function __construct()
-    {
+    public function __construct() {
+        self::init(null, []);
     }
 
     public static function init(LoggerInterface $logger = null, array $options = [])
@@ -213,15 +206,12 @@ class AppRouter implements AppRouterInterface
             self::$routeReplacePattern = $options['routeReplacePattern'];
         }
 
-        /*
-        if (\array_key_exists('appendNamespaceOnDispatch', $options)) {
-            self::$option_appendNamespaceOnDispatch = (bool)$options['appendNamespaceOnDispatch'];
-        }
-        */
-
-        //@todo: документация!
         if (array_key_exists('allowEmptyGroups', $options)) {
             self::$option_allow_empty_groups = (bool)$options['allowEmptyGroups'];
+        }
+
+        if (array_key_exists('allowEmptyHandlers', $options)) {
+            self::$option_allow_empty_handlers = (bool)$options['allowEmptyHandlers'];
         }
 
         self::$stack_prefix = new Stack();
@@ -244,11 +234,12 @@ class AppRouter implements AppRouterInterface
      * Указывает нэймспейс для миддлваров-посредников
      *
      * @param string $namespace
-     * @return void
+     * @return bool
      */
-    public static function setMiddlewaresNamespace(string $namespace = '')
+    public static function setMiddlewaresNamespace(string $namespace = ''):bool
     {
-        self::$middlewares_namespace = $namespace;
+        return true;
+        // self::$middlewares_namespace = $namespace;
     }
 
     public static function get($route, $handler, $name = null)
@@ -634,6 +625,19 @@ class AppRouter implements AppRouterInterface
         // Route Rule доступен только для Matched-роутов.
         self::$routeRule = $rule = $routeInfo[3];
 
+        $actor = self::compileHandler($handler, false, 'default');
+
+        // Handler пустой или некорректный
+        if (empty($handler) && !self::$option_allow_empty_handlers) {
+            throw new AppRouterHandlerError("Handler not found or empty", 500, [
+                'uri'       =>  self::$uri,
+                'method'    =>  self::$httpMethod,
+                'info'      =>  self::$routeInfo,
+                'rule'      =>  self::$routeRule,
+                // 'rule'      =>  [                   'backtrace'     =>  \debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[0] ]
+            ]);
+        }
+
         /**
          * Посредники ПЕРЕД
          *
@@ -657,18 +661,7 @@ class AppRouter implements AppRouterInterface
             } while (!$middlewares_before->isEmpty());
         }
 
-        $actor = self::compileHandler($handler, false, 'default');
 
-        // Handler пустой или некорректный
-        if (empty($handler)) {
-            throw new AppRouterHandlerError("Handler not found or empty", 500, [
-                'uri'       =>  self::$uri,
-                'method'    =>  self::$httpMethod,
-                'info'      =>  self::$routeInfo,
-                'rule'      =>  self::$routeRule,
-                // 'rule'      =>  [                   'backtrace'     =>  \debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[0] ]
-            ]);
-        }
 
         call_user_func_array($actor, $method_parameters);
 

@@ -48,7 +48,7 @@ class AppRouterCommonException extends \RuntimeException
     public function getError(): string
     {
         $backtrace = $this->routeRule['backtrace'] ?: [ 'file' => $this->getFile(), 'line' => $this->getLine() ];
-        return 'AppRouter throws exception: ' . $this->getMessage() . ', that mentioned in ' . $backtrace['file'] . ' at line ' . $backtrace['line'];
+        return 'AppRouter throws exception: ' . $this->getMessage() . ', mentioned in ' . $backtrace['file'] . ' at line ' . $backtrace['line'];
     }
 
 }
