@@ -27,6 +27,7 @@ use function is_string;
 use function md5;
 use function method_exists;
 use function mt_rand;
+use function preg_replace;
 use function rawurldecode;
 use function strpos;
 use function substr;
@@ -165,6 +166,24 @@ class AppRouter implements AppRouterInterface
      */
     private static bool $option_allow_empty_handlers = true;
 
+    /**
+     * getRouter: Заменять конечный необязательный слэш на обязательный
+     * @var bool
+     */
+    private static bool $option_getroute_replace_optional_slash_to_mandatory = true;
+
+    /**
+     * getRouter: убирать ли опциональные группы?
+     * @var bool
+     */
+    private static bool $option_getroute_remove_optional_groups = true;
+
+    /**
+     * getRouter: значение роута по-умолчанию
+     * @var string
+     */
+    private static string $option_getroute_default_value = '/';
+
 
     public function __construct() {
         self::init(null, []);
@@ -172,7 +191,7 @@ class AppRouter implements AppRouterInterface
 
     public static function init(LoggerInterface $logger = null, array $options = [])
     {
-        self::$route_parts = \preg_split("/\/+/", \preg_replace("/(\?.*)/", "", trim($_SERVER['REQUEST_URI'], '/')));
+        self::$route_parts = \preg_split("/\/+/", preg_replace("/(\?.*)/", "", trim($_SERVER['REQUEST_URI'], '/')));
 
         self::$logger
             = ($logger instanceof LoggerInterface)
@@ -223,6 +242,28 @@ class AppRouter implements AppRouterInterface
         self::$stack_middlewares_after = new Stack();
 
         self::$stack_aliases = new Stack();
+    }
+
+    public static function setOption($name, $value = null)
+    {
+        switch ($name) {
+            case 'routeReplacePattern': {
+                self::$routeReplacePattern = $value;
+                break;
+            }
+            case 'allowEmptyGroups': {
+                self::$option_allow_empty_groups = (bool)$value;
+                break;
+            }
+            case 'allowEmptyHandlers': {
+                self::$option_allow_empty_handlers = (bool)$value;
+                break;
+            }
+            case 'getRouterDefaultValue': {
+                self::$option_getroute_default_value = $value;
+                break;
+            }
+        }
     }
 
     public static function setDefaultNamespace(string $namespace = '')
@@ -538,7 +579,9 @@ class AppRouter implements AppRouterInterface
      * Возвращает информацию о роуте по имени
      *
      * @todo: добавить аргумент "кастомная маска", перекрывающая дефолтное значение?
-     * @todo: и нужен ли default route path или перенести его в опции?
+     *
+     * По-хорошему, getRouter доступен только после dispatch(), уже в обработчиках.
+     * То есть до списка правил надо стучаться через коллекцию роутов из FastRoute ядра. Но как?
      *
      * @param string $name
      * @param string $default
@@ -559,18 +602,31 @@ class AppRouter implements AppRouterInterface
             $route = self::$route_names[ $name ];
 
             if ($replace_parts) {
-                $route = \preg_replace(
+                $route = preg_replace(
                     '/{([[:word:]]+)}/',
                     self::$routeReplacePattern,
                     $route
                 );
             }
 
-            // убрать необязательные группы из роута `[...]`
-            return \preg_replace('/\[.+\]$/', '', $route);
+            //@todo: а как заменять именованные группы-плейсхолдеры на переданные переменные?
+
+            // заменяем необязательный слэш в конце на обязательный
+            if (self::$option_getroute_replace_optional_slash_to_mandatory) {
+                $route = preg_replace('/\[\/]$/', '/', $route);
+            }
+
+            if (self::$option_getroute_remove_optional_groups) {
+                // убираем из роута необязательные группы
+                $route = preg_replace('/\[.+\]$/', '', $route);
+            }
+
+
+
+            return $route;
         }
 
-        return $default;
+        return self::$option_getroute_default_value;
     }
 
     /**
