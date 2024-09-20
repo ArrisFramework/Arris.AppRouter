@@ -2,6 +2,10 @@
 
 namespace Arris\AppRouter\FastRoute;
 
+/**
+ * @phpstan-type ParsedRoute array<string|array{string, string}>
+ * @phpstan-type ParsedRoutes list<ParsedRoute>
+ */
 interface RouteParser
 {
     /**
@@ -31,7 +35,7 @@ interface RouteParser
      *
      * @param string $route Route string to parse
      *
-     * @return mixed[][] Array of route data arrays
+     * @return ParsedRoutes Array of route data arrays
      */
-    public function parse($route);
+    public function parse(string $route): array;
 }

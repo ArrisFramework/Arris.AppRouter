@@ -2,6 +2,7 @@
 
 namespace Arris;
 
+use Arris\AppRouter\FastRoute\ConfigureRoutes;
 use Arris\AppRouter\FastRoute\Dispatcher;
 use Arris\AppRouter\FastRoute\RouteCollector;
 use Arris\AppRouter\Stack;
@@ -567,7 +568,7 @@ class AppRouter implements AppRouterInterface
 
     public static function dispatch()
     {
-        self::$dispatcher = \Arris\AppRouter\FastRoute\simpleDispatcher(function (RouteCollector $r) {
+        /*self::$dispatcher = \Arris\AppRouter\FastRoute\simpleDispatcher(function (RouteCollector $r) {
             foreach (self::$rules as $rule) {
                 $handler
                     = (\is_string($rule['handler']) && !empty($rule['namespace']))
@@ -578,7 +579,20 @@ class AppRouter implements AppRouterInterface
                 // единственное решение - это передавать 4-ым параметром $rule, а в методе dispatch совпавшее rule возвращать
                 // причем в совместимой с PHP8 only версии fastroute эта проблема решена. Правда, там вся логика немного другая...
             }
-        });
+        });*/
+        self::$dispatcher = \Arris\AppRouter\FastRoute\FastRoute::recommendedSettings(function (ConfigureRoutes $r){
+            foreach (self::$rules as $rule) {
+                $handler
+                    = (\is_string($rule['handler']) && !empty($rule['namespace']))
+                    ? "{$rule['namespace']}\\{$rule['handler']}"
+                    : $rule['handler'];
+
+                $r->addRoute($rule['httpMethod'], $rule['route'], $handler, $rule);
+                // единственное решение - это передавать 4-ым параметром $rule, а в методе dispatch совпавшее rule возвращать
+                // причем в совместимой с PHP8 only версии fastroute эта проблема решена. Правда, там вся логика немного другая...
+            }
+        })->dispatcher();
+
 
         // Fetch method and URI from somewhere
         self::$routeInfo = $routeInfo = (self::$dispatcher)->dispatch(self::$httpMethod, self::$uri);
@@ -619,14 +633,15 @@ class AppRouter implements AppRouterInterface
         //
         // и опять тупик.
         //
-        $rules = self::getRoutingRules();
+        /*$rules = self::getRoutingRules();
         $rules_key = self::getInternalRuleKey(
             self::$httpMethod,
             $handler,
             self::$uri,
             self::$option_appendNamespaceOnDispatch
         );
-        self::$routeRule = $rule = \array_key_exists($rules_key, $rules) ? $rules[$rules_key] : [];
+        self::$routeRule = $rule = \array_key_exists($rules_key, $rules) ? $rules[$rules_key] : [];*/
+        self::$routeRule = $routeInfo[3];
 
         /**
          * Посредники ПЕРЕД

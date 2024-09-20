@@ -2,28 +2,32 @@
 
 namespace Arris\AppRouter\FastRoute\DataGenerator;
 
-use Arris\AppRouter\FastRoute\DataGenerator\RegexBasedAbstract;
+use function implode;
 
+/** @final */
 class MarkBased extends RegexBasedAbstract
 {
-    protected function getApproxChunkSize()
+    protected function getApproxChunkSize(): int
     {
         return 30;
     }
 
-    protected function processChunk($regexToRoutesMap)
+    /** @inheritDoc */
+    protected function processChunk(array $regexToRoutesMap): array
     {
         $routeMap = [];
         $regexes = [];
         $markName = 'a';
+
         foreach ($regexToRoutesMap as $regex => $route) {
             $regexes[] = $regex . '(*MARK:' . $markName . ')';
-            $routeMap[$markName] = [$route->handler, $route->variables];
+            $routeMap[$markName] = [$route->handler, $route->variables, $route->extraParameters];
 
             ++$markName;
         }
 
-        $regex = '~^(?|' . \implode('|', $regexes) . ')$~';
+        $regex = '~^(?|' . implode('|', $regexes) . ')$~';
+
         return ['regex' => $regex, 'routeMap' => $routeMap];
     }
 }

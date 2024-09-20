@@ -2,58 +2,81 @@
 
 namespace Arris\AppRouter\FastRoute;
 
-use Arris\AppRouter\FastRoute\DataGenerator;
-use Arris\AppRouter\FastRoute\RouteParser;
+use Arris\AppRouter\FastRoute\ConfigureRoutes;
+use Arris\AppRouter\FastRoute\GenerateUri;
+use function array_key_exists;
+use function array_reverse;
+use function is_string;
 
-class RouteCollector
+/**
+ * @phpstan-import-type ProcessedData from ConfigureRoutes
+ * @phpstan-import-type ExtraParameters from DataGenerator
+ * @phpstan-import-type RoutesForUriGeneration from GenerateUri
+ * @phpstan-import-type ParsedRoutes from RouteParser
+ * @final
+ */
+class RouteCollector implements ConfigureRoutes
 {
-    /**
-     * @var RouteParser
-     */
-    protected $routeParser;
+    public const ALL_HTTP_METHODS = [
+        'GET',
+        'POST',
+        'PUT',
+        'PATCH',
+        'DELETE',
+        'HEAD'
+    ];
 
-    /**
-     * @var DataGenerator
-     */
-    protected $dataGenerator;
+    protected string $currentGroupPrefix = '';
 
-    /**
-     * @var string
-     */
-    protected $currentGroupPrefix;
+    /** @var RoutesForUriGeneration */
+    private array $namedRoutes = [];
 
-    /**
-     * Constructs a route collector.
-     *
-     * @param RouteParser   $routeParser
-     * @param DataGenerator $dataGenerator
-     */
-    public function __construct(RouteParser $routeParser, DataGenerator $dataGenerator)
-    {
+    protected RouteParser $routeParser;
+
+    protected DataGenerator $dataGenerator;
+
+    public function __construct(
+        RouteParser $routeParser,
+        DataGenerator $dataGenerator
+    ) {
         $this->routeParser = $routeParser;
         $this->dataGenerator = $dataGenerator;
-        $this->currentGroupPrefix = '';
     }
 
-    /**
-     * Adds a route to the collection.
-     *
-     * The syntax used in the $route string depends on the used route parser.
-     *
-     * @param string|string[] $httpMethod
-     * @param string $route
-     * @param mixed  $handler
-     */
-    public function addRoute($httpMethod, string $route, $handler)
+    /** @inheritDoc */
+    public function addRoute($httpMethod, string $route, $handler, array $extraParameters = []): void
     {
         $route = $this->currentGroupPrefix . $route;
-        $routeDatas = $this->routeParser->parse($route);
+        $parsedRoutes = $this->routeParser->parse($route);
+
+        $extraParameters = [self::ROUTE_REGEX => $route] + $extraParameters;
+
         foreach ((array) $httpMethod as $method) {
-            foreach ($routeDatas as $routeData) {
-                $this->dataGenerator->addRoute($method, $routeData, $handler);
+            foreach ($parsedRoutes as $parsedRoute) {
+                $this->dataGenerator->addRoute($method, $parsedRoute, $handler, $extraParameters);
             }
         }
+
+        if (array_key_exists(self::ROUTE_NAME, $extraParameters)) {
+            $this->registerNamedRoute($extraParameters[self::ROUTE_NAME], $parsedRoutes);
+        }
     }
+
+    /** @param ParsedRoutes $parsedRoutes */
+    private function registerNamedRoute($name, array $parsedRoutes): void
+    {
+        if (! is_string($name) || $name === '') {
+            throw BadRouteException::invalidRouteName($name);
+        }
+
+        if (array_key_exists($name, $this->namedRoutes)) {
+            throw BadRouteException::namedRouteAlreadyDefined($name);
+        }
+
+        $this->namedRoutes[$name] = array_reverse($parsedRoutes);
+    }
+
+
 
     /**
      * Create a route group with a common prefix.
@@ -63,7 +86,7 @@ class RouteCollector
      * @param string $prefix
      * @param callable $callback
      */
-    public function addGroup(string $prefix, callable $callback)
+    public function addGroup(string $prefix, callable $callback):void
     {
         $previousGroupPrefix = $this->currentGroupPrefix;
         $this->currentGroupPrefix = $previousGroupPrefix . $prefix;
@@ -73,67 +96,72 @@ class RouteCollector
 
     /**
      * Adds a GET route to the collection
-     * 
+     *
      * This is simply an alias of $this->addRoute('GET', $route, $handler)
      *
      * @param string $route
-     * @param mixed  $handler
+     * @param mixed $handler
+     * @param array $extraParameters
      */
-    public function get(string $route, $handler)
+    public function get(string $route, $handler, array $extraParameters = []): void
     {
-        $this->addRoute('GET', $route, $handler);
+        $this->addRoute('GET', $route, $handler, $extraParameters);
     }
 
     /**
      * Adds a POST route to the collection
-     * 
+     *
      * This is simply an alias of $this->addRoute('POST', $route, $handler)
      *
      * @param string $route
-     * @param mixed  $handler
+     * @param mixed $handler
+     * @param array $extraParameters
      */
-    public function post(string $route, $handler)
+    public function post(string $route, $handler, array $extraParameters = []): void
     {
-        $this->addRoute('POST', $route, $handler);
+        $this->addRoute('POST', $route, $handler, $extraParameters);
     }
 
     /**
      * Adds a PUT route to the collection
-     * 
+     *
      * This is simply an alias of $this->addRoute('PUT', $route, $handler)
      *
      * @param string $route
-     * @param mixed  $handler
+     * @param mixed $handler
+     * @param array $extraParameters
      */
-    public function put(string $route, $handler)
+    public function put(string $route, $handler, array $extraParameters = []): void
     {
-        $this->addRoute('PUT', $route, $handler);
+        $this->addRoute('PUT', $route, $handler, $extraParameters);
     }
 
     /**
      * Adds a DELETE route to the collection
-     * 
+     *
      * This is simply an alias of $this->addRoute('DELETE', $route, $handler)
      *
      * @param string $route
-     * @param mixed  $handler
+     * @param mixed $handler
+     * @param array $extraParameters
      */
-    public function delete(string $route, $handler)
+    public function delete(string $route, $handler, array $extraParameters = []): void
     {
-        $this->addRoute('DELETE', $route, $handler);
+        $this->addRoute('DELETE', $route, $handler, $extraParameters);
     }
 
     /**
      * Adds a PATCH route to the collection
-     * 
+     *
      * This is simply an alias of $this->addRoute('PATCH', $route, $handler)
      *
      * @param string $route
-     * @param mixed  $handler
+     * @param mixed $handler
+     * @param array $extraParameters
      */
-    public function patch(string $route, $handler)
+    public function patch(string $route, $handler, array $extraParameters = []): void
     {
-        $this->addRoute('PATCH', $route, $handler);
+        $this->addRoute('PATCH', $route, $handler, $extraParameters);
     }
 
     /**
@@ -142,20 +170,45 @@ class RouteCollector
      * This is simply an alias of $this->addRoute('HEAD', $route, $handler)
      *
      * @param string $route
-     * @param mixed  $handler
+     * @param mixed $handler
+     * @param array $extraParameters
      */
-    public function head(string $route, $handler)
+    public function head(string $route, $handler, array $extraParameters = []): void
     {
-        $this->addRoute('HEAD', $route, $handler);
+        $this->addRoute('HEAD', $route, $handler, $extraParameters);
+    }
+
+    /** @inheritDoc */
+    public function options(string $route, $handler, array $extraParameters = []): void
+    {
+        $this->addRoute('OPTIONS', $route, $handler, $extraParameters);
+    }
+
+    /** @inheritDoc */
+    public function processedRoutes(): array
+    {
+        $data =  $this->dataGenerator->getData();
+        $data[] = $this->namedRoutes;
+
+        return $data;
     }
 
     /**
-     * Returns the collected route data, as provided by the data generator.
+     * @deprecated
      *
-     * @return array
+     * @see ConfigureRoutes::processedRoutes()
+     *
+     * @return ProcessedData
      */
-    public function getData()
+    public function getData(): array
     {
         return $this->dataGenerator->getData();
+    }
+
+    public function any(string $route, $handler, array $extraParameters = []): void
+    {
+        foreach (self::ALL_HTTP_METHODS as $method) {
+            $this->addRoute($method, $route, $handler, $extraParameters);
+        }
     }
 }

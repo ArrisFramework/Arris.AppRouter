@@ -12,10 +12,7 @@
         "psr-4": {
             "Arris\\": "src/",
             "Arris\\AppRouter\\": "src/AppRouter"
-        },
-        "files": [
-            "src/AppRouter/FastRoute/functions.php"
-        ]
+        }
     },
     "authors": [
         {

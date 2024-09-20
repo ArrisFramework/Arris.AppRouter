@@ -4,14 +4,14 @@ namespace Arris\AppRouter\FastRoute;
 
 interface Dispatcher
 {
-    const NOT_FOUND = 0;
-    const FOUND = 1;
-    const METHOD_NOT_ALLOWED = 2;
+    public const NOT_FOUND = 0;
+    public const FOUND = 1;
+    public const METHOD_NOT_ALLOWED = 2;
 
     /**
      * Dispatches against the provided HTTP method verb and URI.
      *
-     * Returns array with one of the following formats:
+     * Returns an object that also has an array shape with one of the following formats:
      *
      *     [self::NOT_FOUND]
      *     [self::METHOD_NOT_ALLOWED, ['GET', 'OTHER_ALLOWED_METHODS']]
@@ -22,5 +22,5 @@ interface Dispatcher
      *
      * @return array
      */
-    public function dispatch(string $httpMethod, string $uri): array;
+    public function dispatch(string $httpMethod, string $uri); // ResultInterface ?
 }
