@@ -26,9 +26,16 @@ AppRouter::init(AppLogger::scope('routing'), [
 - `namespace` - алиас `defaultNamespace`
 - `prefix` - текущий префикс URL (аналогично поведению для групп)
 - `routeReplacePattern` - ? 
-- `allowEmptyHandlers` (true) - разрешить пустые (заданные как `[]`) хэндлеры? Если false - кидается исключение `AppRouterHandlerError` "Handler not found or empty".
+- `allowEmptyHandlers` (false) - разрешить пустые (заданные как `[]`) хэндлеры? Если false - кидается исключение `AppRouterHandlerError: Handler not found or empty`.
 - `allowEmptyGroups` (false) - разрешить ли пустые группы? Пустой считается группа без роутов. Если разрешено - для такой группы будут парситься миддлвары и опции.
-- 
+
+Важно отметить, что "пустой" handler может быть описан двумя способами:
+
+- `null` - такой handler просто пропускается, роут в таком случае вернет `AppRouter::NotFoundException: URL not found`
+- `[]` - поведение зависит от опции `allowEmptyHandlers`:
+  - `= true` - хэндлер не делает ничего, хотя проходится вся цепочка посредников до него и после него
+  - `= false` - кидается исключение `AppRouterHandlerError - Handler not found or empty`
+
 
 ```php
 
@@ -77,6 +84,17 @@ AppRouter::group([], function (){
     });
 });
 ```
+
+# Исключения (Exceptions)
+
+Класс кидает три исключения:
+
+- `AppRouterHandlerError` - ошибка в хэндлере (пустой, неправильный, итп)
+- `AppRouterNotFoundException` - роут не определен (URL ... not found)
+- `AppRouterMethodNotAllowedException` - используемый метод недопустим для этого роута
+
+При этом передается расширенная информация по роуту, получить которую можно через метод `$e->getError()`, потому что 
+переопределить финальный метод `getMessage()` НЕВОЗМОЖНО. 
 
 
 # ToDo

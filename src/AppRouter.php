@@ -164,7 +164,7 @@ class AppRouter implements AppRouterInterface
     /**
      * @var bool Разрешать пустые хэндлеры ([])
      */
-    private static bool $option_allow_empty_handlers = true;
+    private static bool $option_allow_empty_handlers = false;
 
     /**
      * getRouter: Заменять конечный необязательный слэш на обязательный
@@ -717,12 +717,16 @@ class AppRouter implements AppRouterInterface
             } while (!$middlewares_before->isEmpty());
         }
 
-
-
-        call_user_func_array($actor, $method_parameters);
-
-        // c PHP8 поведение нужно поменять? Передавать
+        // c PHP8 поведение можно поменять?
         // self::$uri, self::$routeInfo как именованные параметры и первым параметром собственно $method_parameters
+        // или вообще передавать в конструктор параметрами три экземпляра:
+        // - Route_Params (implements ArrayAccess)
+        // - HTTP_Request (implements ArrayAccess)
+        // - HTTP_Response (implements ArrayAccess)
+        // это нам даст ОО-подход к $_REQUEST итд.
+        if (!empty($actor)) {
+            call_user_func_array($actor, $method_parameters);
+        }
 
         /**
          * Посредники ПОСЛЕ
