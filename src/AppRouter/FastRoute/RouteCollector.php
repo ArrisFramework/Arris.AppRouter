@@ -23,7 +23,8 @@ class RouteCollector implements ConfigureRoutes
         'PUT',
         'PATCH',
         'DELETE',
-        'HEAD'
+        'HEAD',
+        'OPTIONS'
     ];
 
     protected string $currentGroupPrefix = '';
@@ -81,7 +82,7 @@ class RouteCollector implements ConfigureRoutes
     /**
      * Create a route group with a common prefix.
      *
-     * All routes created in the passed callback will have the given group prefix prepended.
+     * All routes created at the passed callback will have the given group prefix prepended.
      *
      * @param string $prefix
      * @param callable $callback
