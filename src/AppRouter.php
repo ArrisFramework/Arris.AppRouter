@@ -73,9 +73,9 @@ class AppRouter implements AppRouterInterface
     /**
      * Current Routing Info
      *
-     * @var array
+     * @var Dispatcher\Result\ResultInterface
      */
-    private static array $routeInfo = [];
+    private static $routeInfo;
 
     /**
      * @var Stack
@@ -593,13 +593,13 @@ class AppRouter implements AppRouterInterface
             }
         })->dispatcher();
 
-
         // Fetch method and URI from somewhere
         self::$routeInfo = $routeInfo = (self::$dispatcher)->dispatch(self::$httpMethod, self::$uri);
 
         $state = $routeInfo[0]; // тут ВСЕГДА что-то есть
         $handler = $routeInfo[1] ?? [];
         $method_parameters = $routeInfo[2] ?? [];
+        self::$routeRule = $rule = $routeInfo[3];
 
         // dispatch errors
         if ($state === Dispatcher::NOT_FOUND) {
@@ -622,26 +622,7 @@ class AppRouter implements AppRouterInterface
             ]);
         }
 
-        // Вычисляем правило, определяющее текущий роут.
-        // и вот тут затык:
-        // 1. Получить rule для роута можно только по ключу из массива правил
-        // 2. но чтобы вычислить имя ключа - нужно знать нэймспейс.
-        // 3. а неймспейс у конкретного роута мы можем узнать только из его правила, потому что на данный момент он какой угодно (и не тот)
-        // ---
-        // И вторая проблема - в правиле для роута может быть указано 'route' => '/auth/2/4[/{id:\d}]', а текущий роут может быть `/auth/2/4`
-        // и он удовлетворяет условию роута, но будет иметь другой internal key.
-        //
-        // и опять тупик.
-        //
-        /*$rules = self::getRoutingRules();
-        $rules_key = self::getInternalRuleKey(
-            self::$httpMethod,
-            $handler,
-            self::$uri,
-            self::$option_appendNamespaceOnDispatch
-        );
-        self::$routeRule = $rule = \array_key_exists($rules_key, $rules) ? $rules[$rules_key] : [];*/
-        self::$routeRule = $routeInfo[3];
+
 
         /**
          * Посредники ПЕРЕД

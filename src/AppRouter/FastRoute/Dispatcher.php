@@ -2,6 +2,8 @@
 
 namespace Arris\AppRouter\FastRoute;
 
+use Arris\AppRouter\FastRoute\Dispatcher\Result\ResultInterface;
+
 interface Dispatcher
 {
     public const NOT_FOUND = 0;
@@ -22,5 +24,5 @@ interface Dispatcher
      *
      * @return array
      */
-    public function dispatch(string $httpMethod, string $uri); // ResultInterface ?
+    public function dispatch(string $httpMethod, string $uri)/*:ResultInterface*/;
 }
