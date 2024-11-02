@@ -16,6 +16,18 @@ interface AppRouterInterface
     public static function init(LoggerInterface $logger = null, array $options = []);
 
     /**
+     * Устанавливает кастомные опции:
+     * - allowEmptyGroups - разрешить ли пустые группы? (НЕТ)
+     * - allowEmptyHandlers - разрешить ли пустые хэндлеры (НЕТ)
+     * - getRouterDefaultValue - роут по-умолчанию, если имя не найдено (/)
+     *
+     * @param $name
+     * @param $value
+     * @return mixed
+     */
+    public static function setOption($name, $value = null);
+
+    /**
      * Устанавливает namespace по умолчанию (дублируется в опциях init() )
      *
      * @param string $namespace
@@ -118,7 +130,7 @@ interface AppRouterInterface
     public static function dispatch();
 
 
-    public static function getRouter($name = '', string $default = '/');
+    public static function getRouter($name = '', array $parts = []);
 
     /**
      * Возвращает информацию о текущем роутинге

@@ -89,7 +89,7 @@ class AppRouter implements AppRouterInterface
      *
      * @var string
      */
-    private static string $routeReplacePattern = '%%$1%%';
+    // private static string $routeReplacePattern = '%%$1%%';
 
     /**
      * Current Routing Info
@@ -221,9 +221,9 @@ class AppRouter implements AppRouterInterface
         }
 
         //@todo: документация!
-        if (array_key_exists('routeReplacePattern', $options)) {
+        /*if (array_key_exists('routeReplacePattern', $options)) {
             self::$routeReplacePattern = $options['routeReplacePattern'];
-        }
+        }*/
 
         if (array_key_exists('allowEmptyGroups', $options)) {
             self::$option_allow_empty_groups = (bool)$options['allowEmptyGroups'];
@@ -247,10 +247,10 @@ class AppRouter implements AppRouterInterface
     public static function setOption($name, $value = null)
     {
         switch ($name) {
-            case 'routeReplacePattern': {
+            /*case 'routeReplacePattern': {
                 self::$routeReplacePattern = $value;
                 break;
-            }
+            }*/
             case 'allowEmptyGroups': {
                 self::$option_allow_empty_groups = (bool)$value;
                 break;
@@ -578,38 +578,42 @@ class AppRouter implements AppRouterInterface
     /**
      * Возвращает информацию о роуте по имени
      *
-     * @todo: добавить аргумент "кастомная маска", перекрывающая дефолтное значение?
-     *
-     * По-хорошему, getRouter доступен только после dispatch(), уже в обработчиках.
-     * То есть до списка правил надо стучаться через коллекцию роутов из FastRoute ядра. Но как?
-     *
-     * @param string $name
-     * @param string $default
-     * @param bool $replace_parts
+     * @param string $name - имя роута
+     * @param array $parts - массив замен именованных групп на параметры
      * @return string|array
      */
-    public static function getRouter($name = '', string $default = '/', bool $replace_parts = false)
+    public static function getRouter($name = '', array $parts = [])
     {
         if ($name === '*') {
             return self::$route_names;
         }
 
         if ($name === '') {
-            return $default;
+            return self::$option_getroute_default_value;
         }
 
         if (array_key_exists($name, self::$route_names)) {
             $route = self::$route_names[ $name ];
 
-            if ($replace_parts) {
+            // заменяем именованные группы-плейсхолдеры на переданные переменные?
+            if (!empty($parts)) {
+                foreach ($parts as $key => $value) {
+                    $pattern = "/\[?\{({$key})(\:\\\\\w+\+)?\}\]?/";
+                    $route = preg_replace(
+                        $pattern,
+                        $value,
+                        $route
+                    );
+                }
+            }
+
+            /*if ($replace_parts) {
                 $route = preg_replace(
                     '/{([[:word:]]+)}/',
                     self::$routeReplacePattern,
                     $route
                 );
-            }
-
-            //@todo: а как заменять именованные группы-плейсхолдеры на переданные переменные?
+            }*/
 
             // заменяем необязательный слэш в конце на обязательный
             if (self::$option_getroute_replace_optional_slash_to_mandatory) {
