@@ -509,48 +509,42 @@ class AppRouter implements AppRouterInterface
     }
 
     /**
-     * @param array $options [<br>
-     *      string 'prefix' => '',<br>
-     *      string 'namespace' => '',<br>
-     *      callable 'before' = null,<br>
-     *      callable 'after' => null<br>
-     * ]
+     * @param string $prefix
+     * @param string $namespace
+     * @param null $before
+     * @param null $after
      * @param callable|null $callback
+     *
      * @return void
      */
-    public static function group(array $options = [], callable $callback = null)
+    public static function group(string $prefix = '', string $namespace = '', $before = null, $after = null, callable $callback = null)
     {
         if (empty($callback) && !self::$option_allow_empty_groups) {
             return;
         }
 
-        $_setPrefix = array_key_exists('prefix', $options);
-        $_setNamespace = array_key_exists('namespace', $options);
+        $_setPrefix = !empty($prefix);
+        $_setNamespace = !empty($namespace);
 
         if ($_setPrefix) {
-            self::$stack_prefix->push($options['prefix']);
+            self::$stack_prefix->push($prefix);
             self::$current_prefix = self::$stack_prefix->implode();
         }
 
         if ($_setNamespace) {
-            self::$stack_namespace->push($options['namespace']);
+            self::$stack_namespace->push($namespace);
             self::$current_namespace = self::$stack_namespace->implode('\\');
         }
 
-        // Проверка is_hander лишняя, поскольку позже, в диспетчере, всё равно выполняется компиляция хэндлера.
-        // Там и кидаются все исключения.
-
         $group_have_before_middleware = false;
-        if (array_key_exists('before', $options)/* && self::is_handler($options['before'])*/) {
-            self::$stack_middlewares_before->push($options['before']);
-            // self::$current_middleware_before = $options['before'];
+        if (!is_null($before)) {
+            self::$stack_middlewares_before->push($before);
             $group_have_before_middleware = true;
         }
 
         $group_have_after_middleware = false;
-        if (array_key_exists('after', $options)/* && self::is_handler($options['after'])*/) {
-            self::$stack_middlewares_after->push($options['after']);
-            /*self::$current_middleware_after = $options['after'];*/
+        if (!is_null($after)) {
+            self::$stack_middlewares_after->push($after);
             $group_have_after_middleware = true;
         }
 
@@ -559,11 +553,11 @@ class AppRouter implements AppRouterInterface
         }
 
         if ($group_have_before_middleware) {
-            /*self::$current_middleware_before =*/ self::$stack_middlewares_before->pop();
+            self::$stack_middlewares_before->pop();
         }
 
         if ($group_have_after_middleware) {
-            /*self::$current_middleware_after =*/ self::$stack_middlewares_after->pop();
+            self::$stack_middlewares_after->pop();
         }
 
         if ($_setNamespace) {
@@ -586,7 +580,7 @@ class AppRouter implements AppRouterInterface
      * @param array $parts - массив замен именованных групп на параметры
      * @return string|array
      */
-    public static function getRouter($name = '', array $parts = [])
+    public static function getRouter($name = '', array $parts = []): array|string
     {
         if ($name === '*') {
             return self::$route_names;
@@ -628,8 +622,6 @@ class AppRouter implements AppRouterInterface
                 // убираем из роута необязательные группы
                 $route = preg_replace('/\[.+\]$/', '', $route);
             }
-
-
 
             return $route;
         }

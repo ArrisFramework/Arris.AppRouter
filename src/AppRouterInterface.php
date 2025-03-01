@@ -117,17 +117,14 @@ interface AppRouterInterface
      * Create routing group with options
      * Создает группу роутов
      *
-     * Возможные ключи в списке опций:
-     * - prefix (URL prefix)
-     * - namespace
-     * - before (middleware handler)
-     * - after (middleware handler)
-     *
-     * @param array $options
-     * @param callable $callback
+     * @param string $prefix    - prefix (URL prefix)
+     * @param string $namespace - namespace
+     * @param null $before      - before (middleware handler)
+     * @param null $after       - after (middleware handler)
+     * @param callable|null $callback inline callback function with group definition
      * @return mixed
      */
-    public static function group(array $options = [], callable $callback = null);
+    public static function group(string $prefix = '', string $namespace = '', $before = null, $after = null, callable $callback = null);
 
     /**
      * Dispatch routing
