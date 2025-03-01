@@ -6,6 +6,13 @@ use Psr\Log\LoggerInterface;
 
 interface AppRouterInterface
 {
+    /**
+     * Конструктор, инициализирующий статик класс
+     *
+     * @param LoggerInterface|null $logger
+     * @param array $options
+     */
+    public function __construct(LoggerInterface $logger = null, array $options = []);
 
     /**
      * Инициализирует статик-класс

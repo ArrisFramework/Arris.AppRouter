@@ -185,8 +185,12 @@ class AppRouter implements AppRouterInterface
     private static string $option_getroute_default_value = '/';
 
 
-    public function __construct() {
-        self::init(null, []);
+    /**
+     * @param LoggerInterface|null $logger
+     * @param array $options
+     */
+    public function __construct(LoggerInterface $logger = null, array $options = []) {
+        self::init($logger, $options);
     }
 
     public static function init(LoggerInterface $logger = null, array $options = [])
