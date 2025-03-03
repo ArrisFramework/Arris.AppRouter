@@ -1,6 +1,6 @@
 # About
 
-Попытка написать свой роутер на базе https://github.com/nikic/FastRoute
+Роутер на базе https://github.com/nikic/FastRoute
 
 Реализует возможность статического класса AppRouter с методами:
 
@@ -9,14 +9,19 @@
 - `post()`
 - etc
 
-Выделено в отдельный пакет для возможности обновления отдельно от основного класса фреймворка и отдельного подключения. 
+**NB:** Этот документ содержит инструкции для подключения роутера для PHP 7.4, но не 8+!
 
+Основное отличие между версиями: именованные параметры
+
+# Подключение
+
+`composer require karelwintersky/arris.router:1.102.0`
 
 # Инициализация
 
 ```php
 AppRouter::init(AppLogger::scope('routing'), [
-// опции
+    /* options */
 ]);
 ```
 
@@ -24,8 +29,7 @@ AppRouter::init(AppLogger::scope('routing'), [
 
 - `defaultNamespace` - неймспейс по-умолчанию
 - `namespace` - алиас `defaultNamespace`
-- `prefix` - текущий префикс URL (аналогично поведению для групп)
-- `routeReplacePattern` - ? 
+- `prefix` - базовый префикс URL (аналогично поведению для групп)
 - `allowEmptyHandlers` (false) - разрешить пустые (заданные как `[]`) хэндлеры? Если false - кидается исключение `AppRouterHandlerError: Handler not found or empty`.
 - `allowEmptyGroups` (false) - разрешить ли пустые группы? Пустой считается группа без роутов. Если разрешено - для такой группы будут парситься миддлвары и опции.
 
@@ -35,6 +39,7 @@ AppRouter::init(AppLogger::scope('routing'), [
 - `[]` - поведение зависит от опции `allowEmptyHandlers`:
   - `= true` - хэндлер не делает ничего, хотя проходится вся цепочка посредников до него и после него
   - `= false` - кидается исключение `AppRouterHandlerError - Handler not found or empty`
+
 
 
 ```php
@@ -94,9 +99,20 @@ AppRouter::group([], function (){
 - `AppRouterMethodNotAllowedException` - используемый метод недопустим для этого роута
 
 При этом передается расширенная информация по роуту, получить которую можно через метод `$e->getError()`, потому что 
-переопределить финальный метод `getMessage()` НЕВОЗМОЖНО. 
+переопределить финальный метод `getMessage()` невозможно. 
 
 
 # ToDo
 
 - Опция `middlewareNamespace` для `init()` - неймспейс посредников по умолчанию.
+
+- https://github.com/nikic/FastRoute/issues/234 - named routes
+- https://github.com/thephpleague/route - альтернатива 
+- https://github.com/Nevraxe/Cervo/blob/5.0/src/Router.php - чья-то самописная альтернатива
+- https://github.com/harlam/pico-framework/blob/master/src/RouteCollector.php еще одна
+- 
+
+# Фишки
+```php
+$r->addRoute('GET', '/CSS/{path:.*}', 'handler'); // теперь в handler() можно передать $path
+```
