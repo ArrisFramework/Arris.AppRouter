@@ -15,7 +15,7 @@
 
 # Подключение
 
-`composer require karelwintersky/arris.router:1.102.0`
+`composer require karelwintersky/arris.router:1.103.1`
 
 # Инициализация
 
