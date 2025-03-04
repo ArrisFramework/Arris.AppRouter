@@ -28,12 +28,18 @@ use function md5;
 use function method_exists;
 use function mt_rand;
 use function preg_replace;
+use function preg_split;
+use function trim;
 use function rawurldecode;
-use function strpos;
-use function substr;
+use function str_contains;
 
 class AppRouter implements AppRouterInterface
 {
+    const OPTION_ALLOW_EMPTY_GROUPS = 'allowEmptyGroups';
+    const OPTION_ALLOW_EMPTY_HANDLERS = 'allowEmptyHandlers';
+    const OPTION_DEFAULT_ROUTE = 'getRouterDefaultValue';
+    const OPTION_USE_ALIASES = 'useAliases';
+
     public const ALL_HTTP_METHODS = [
         'GET',
         'POST',
@@ -125,19 +131,9 @@ class AppRouter implements AppRouterInterface
     private static array $instances_middlewares = [];
 
     /**
-     * @var Stack
+     * @var array
      */
-    private static Stack $stack_aliases;
-
-    /**
-     * @var null
-     */
-    // private static $current_middleware_before = null;
-
-    /**
-     * @var null
-     */
-    // private static $current_middleware_after = null;
+    public static array $stack_aliases = [];
 
     /**
      * В планах: дать возможность указывать нэйспейс для миддлваров, но не реализован. Зачем?
@@ -157,45 +153,69 @@ class AppRouter implements AppRouterInterface
 
     /**
      * Разрешать ли пустые группы (без роутов, но с опциями или миддлварами)
+     *
      * @var bool $option_allow_empty_groups
      */
     private static bool $option_allow_empty_groups = false;
 
     /**
-     * @var bool Разрешать пустые хэндлеры ([])
+     * Разрешать пустые хэндлеры ([])
+     *
+     * @var bool
      */
     private static bool $option_allow_empty_handlers = false;
 
     /**
      * getRouter: Заменять конечный необязательный слэш на обязательный
+     *
      * @var bool
      */
     private static bool $option_getroute_replace_optional_slash_to_mandatory = true;
 
     /**
      * getRouter: убирать ли опциональные группы?
+     *
      * @var bool
      */
     private static bool $option_getroute_remove_optional_groups = true;
 
     /**
-     * getRouter: значение роута по-умолчанию
+     * getRouter: значение роута по-умолчанию (для ненайденных или пустых имён)
+     *
      * @var string
      */
     private static string $option_getroute_default_value = '/';
 
-
     /**
-     * @param LoggerInterface|null $logger
-     * @param array $options
+     * Использовать ли механизм "алиасов"? (FALSE)
+     *
+     * @var bool
      */
-    public function __construct(LoggerInterface $logger = null, array $options = []) {
-        self::init($logger, $options);
+    private static bool $option_use_aliases = false;
+
+    /* ============================================================================================================================================*/
+
+    public function __construct(
+        LoggerInterface $logger = null,
+        string $namespace = '',
+        string $prefix = '',
+        bool $allowEmptyGroups = false,
+        bool $allowEmptyHandlers = false,
+    ) {
+        self::init($logger, namespace: $namespace, prefix: $prefix, allowEmptyGroups: $allowEmptyGroups, allowEmptyHandlers: $allowEmptyHandlers);
     }
 
-    public static function init(LoggerInterface $logger = null, array $options = [])
+    public static function init(
+        LoggerInterface $logger = null,
+        string $namespace = '',
+        string $prefix = '',
+        bool $allowEmptyGroups = false,
+        bool $allowEmptyHandlers = false,
+    )
     {
-        self::$route_parts = \preg_split("/\/+/", preg_replace("/(\?.*)/", "", trim($_SERVER['REQUEST_URI'], '/')));
+        // unimplemented options in constructor
+        // string $middleware_namespace = '',
+        self::$route_parts = preg_split("/\/+/", \preg_replace("/(\?.*)/", "", trim($_SERVER['REQUEST_URI'], '/')));
 
         self::$logger
             = ($logger instanceof LoggerInterface)
@@ -205,37 +225,20 @@ class AppRouter implements AppRouterInterface
         self::$httpMethod = $_SERVER['REQUEST_METHOD'];
 
         $uri = $_SERVER['REQUEST_URI'];
-        if (false !== $pos = strpos($uri, '?')) {
-            $uri = substr($uri, 0, $pos);
-        }
+        $uri = strstr($uri, '?', true) ?: $uri;
+
         self::$uri = rawurldecode($uri);
 
-        if (array_key_exists('defaultNamespace', $options)) {
-            self::setDefaultNamespace($options['defaultNamespace']);
-        } elseif (array_key_exists('namespace', $options)) {
-            self::setDefaultNamespace($options['namespace']);
+        if (!empty($namespace)) {
+            self::setDefaultNamespace($namespace);
         }
 
-        if (array_key_exists('middlewareNamespace', $options)) {
-            self::setMiddlewaresNamespace($options['middlewareNamespace']);
+        if (!empty($prefix)) {
+            self::$current_prefix = $prefix;
         }
 
-        if (array_key_exists('prefix', $options)) {
-            self::$current_prefix = $options['prefix'];
-        }
-
-        //@todo: документация!
-        /*if (array_key_exists('routeReplacePattern', $options)) {
-            self::$routeReplacePattern = $options['routeReplacePattern'];
-        }*/
-
-        if (array_key_exists('allowEmptyGroups', $options)) {
-            self::$option_allow_empty_groups = (bool)$options['allowEmptyGroups'];
-        }
-
-        if (array_key_exists('allowEmptyHandlers', $options)) {
-            self::$option_allow_empty_handlers = (bool)$options['allowEmptyHandlers'];
-        }
+        self::$option_allow_empty_groups = $allowEmptyGroups;
+        self::$option_allow_empty_handlers = $allowEmptyHandlers;
 
         self::$stack_prefix = new Stack();
 
@@ -245,32 +248,34 @@ class AppRouter implements AppRouterInterface
 
         self::$stack_middlewares_after = new Stack();
 
-        self::$stack_aliases = new Stack();
+        self::$stack_aliases = [];
+
+        // self::$routeReplacePattern = $routeReplacePattern;
     }
 
-    public static function setOption($name, $value = null)
+    public static function setOption($name, $value = null):void
     {
         switch ($name) {
-            /*case 'routeReplacePattern': {
-                self::$routeReplacePattern = $value;
-                break;
-            }*/
-            case 'allowEmptyGroups': {
+            case self::OPTION_ALLOW_EMPTY_GROUPS: {
                 self::$option_allow_empty_groups = (bool)$value;
                 break;
             }
-            case 'allowEmptyHandlers': {
+            case self::OPTION_ALLOW_EMPTY_HANDLERS: {
                 self::$option_allow_empty_handlers = (bool)$value;
                 break;
             }
-            case 'getRouterDefaultValue': {
+            case self::OPTION_DEFAULT_ROUTE: {
                 self::$option_getroute_default_value = $value;
+                break;
+            }
+            case self::OPTION_USE_ALIASES: {
+                self::$option_use_aliases = (bool)$value;
                 break;
             }
         }
     }
 
-    public static function setDefaultNamespace(string $namespace = '')
+    public static function setDefaultNamespace(string $namespace = ''):void
     {
         self::$current_namespace = $namespace;
     }
@@ -279,11 +284,11 @@ class AppRouter implements AppRouterInterface
      * Указывает нэймспейс для миддлваров-посредников
      *
      * @param string $namespace
-     * @return bool
+     * @return void
      */
-    public static function setMiddlewaresNamespace(string $namespace = ''):bool
+    public static function setMiddlewaresNamespace(string $namespace = ''):void
     {
-        return true;
+        // return true;
         // self::$middlewares_namespace = $namespace;
     }
 
@@ -508,19 +513,10 @@ class AppRouter implements AppRouterInterface
         }
     }
 
-    /**
-     * @param string $prefix
-     * @param string $namespace
-     * @param null $before
-     * @param null $after
-     * @param callable|null $callback
-     *
-     * @return void
-     */
-    public static function group(string $prefix = '', string $namespace = '', $before = null, $after = null, callable $callback = null)
+    public static function group(string $prefix = '', string $namespace = '', $before = null, $after = null, callable $callback = null, array $alias = []):bool
     {
         if (empty($callback) && !self::$option_allow_empty_groups) {
-            return;
+            return false;
         }
 
         $_setPrefix = !empty($prefix);
@@ -570,20 +566,18 @@ class AppRouter implements AppRouterInterface
             self::$current_prefix = self::$stack_prefix->implode();
         }
 
-        // return something? What?
+        return true;
     }
 
-    /**
-     * Возвращает информацию о роуте по имени
-     *
-     * @param string $name - имя роута
-     * @param array $parts - массив замен именованных групп на параметры
-     * @return string|array
-     */
-    public static function getRouter($name = '', array $parts = []): array|string
+
+    public static function getRouter(string $name = '', array $parts = []): array|string
     {
         if ($name === '*') {
-            return self::$route_names;
+            $set = [];
+            foreach (self::$route_names as $name => $route) {
+                $set[ $name ] = self::getRouter($name/*, $parts*/); //@todo: эксперименты!
+            }
+            return $set;
         }
 
         if ($name === '') {
@@ -605,21 +599,13 @@ class AppRouter implements AppRouterInterface
                 }
             }
 
-            /*if ($replace_parts) {
-                $route = preg_replace(
-                    '/{([[:word:]]+)}/',
-                    self::$routeReplacePattern,
-                    $route
-                );
-            }*/
-
             // заменяем необязательный слэш в конце на обязательный
             if (self::$option_getroute_replace_optional_slash_to_mandatory) {
                 $route = preg_replace('/\[\/]$/', '/', $route);
             }
 
+            // убираем из роута необязательные группы
             if (self::$option_getroute_remove_optional_groups) {
-                // убираем из роута необязательные группы
                 $route = preg_replace('/\[.+\]$/', '', $route);
             }
 
@@ -629,9 +615,7 @@ class AppRouter implements AppRouterInterface
         return self::$option_getroute_default_value;
     }
 
-    /**
-     * @return array
-     */
+
     public static function getRoutersNames(): array
     {
         return self::$route_names;
@@ -646,7 +630,14 @@ class AppRouter implements AppRouterInterface
                     ? "{$rule['namespace']}\\{$rule['handler']}"
                     : $rule['handler'];
 
-                $r->addRoute($rule['httpMethod'], $rule['route'], $handler, $rule);
+                if (self::$option_use_aliases) {
+                    $route = str_contains($rule['route'], '{') ? self::applyAliases($rule['route']) : $rule['route'];
+                } else {
+                    $route = $rule['route'];
+                }
+
+                $r->addRoute($rule['httpMethod'], $route, $handler, $rule);
+                // $r->addRoute($rule['httpMethod'], $rule['route'], $handler, $rule);
             }
         });
 
@@ -763,7 +754,7 @@ class AppRouter implements AppRouterInterface
     }
 
     /**
-     * Возвращает список объявленных роутов: [ 'method: handler' => [ handler, namespace, extra params ]
+     * DEBUG: Возвращает список объявленных роутов: [ 'method: handler' => [ handler, namespace, extra params ]
      *
      * @return array
      */
@@ -776,21 +767,21 @@ class AppRouter implements AppRouterInterface
      * Генерирует имя внутреннего ключа для массива именованных роутов
      * на основе метода и хэндлера:
      *
-     * - Замыкание ([таймштамп] Closure(LineStart-LineEnd)=аргумент1:аргумент2:аргумент3 или [таймштамп] Closure(<md5(1, 4096)>)=.
+     * - Замыкание (Closure(LineStart-LineEnd)=аргумент1:аргумент2:аргумент3 или [таймштамп] Closure(<md5(1, 4096)>)=.
      * - Метод класса, переданный строкой
      * - Метод класса, переданный массивом [ класс, метод ]
      * - функция
      *
-     * @param $httpMethod
+     * @param string $httpMethod
      * @param $handler
-     * @param $route
+     * @param string $route
      * @param bool $append_namespace
      * @param string $force_use_namespace -- если не пусто - будет использован этот неймспейс вместо `self::$current_namespace`. Зачем?
      * Дело в том, что на этапе диспетчера current_namespace уже может быть пустым, а не тем, что соответствует роуту. Поэтому внутреннее имя будет вычислено неверно.
      * Поэтому будем передавать в `force_use_namespace` нэймспейс, который идет в $rule['namespace']
      * @return string
      */
-    private static function getInternalRuleKey($httpMethod, $handler, $route, bool $append_namespace = true, string $force_use_namespace = ''): string
+    private static function getInternalRuleKey(string $httpMethod, $handler, string $route, bool $append_namespace = true, string $force_use_namespace = ''): string
     {
         $namespace = '';
         if ($append_namespace) {
@@ -819,8 +810,9 @@ class AppRouter implements AppRouterInterface
             // function by name
             $internal_name = $handler;
         }
+        $r = self::$current_prefix . $route;
 
-        return "{$httpMethod} {$internal_name}";
+        return "{$httpMethod} {$r} {$internal_name}";
     }
 
     /**
@@ -830,8 +822,9 @@ class AppRouter implements AppRouterInterface
      * @param bool $is_static
      * @return void
      */
-    public static function checkClassExists($class, bool $is_static = false)
+    public static function checkClassExists($class, bool $is_static = false): void
     {
+        // быстрее, чем рефлексия
         if (!class_exists($class)){
             $prompt = $is_static ? "Static class" : "Class";
             self::$logger->error("{$prompt} '{$class}' not defined.", [ self::$uri, self::$httpMethod, $class ]);
@@ -852,7 +845,7 @@ class AppRouter implements AppRouterInterface
      * @param bool $is_static
      * @return void
      */
-    public static function checkMethodExists($class, $method, bool $is_static = false)
+    public static function checkMethodExists($class, $method, bool $is_static = false): void
     {
         $prompt = $is_static ? 'static class' : 'class';
 
@@ -866,6 +859,7 @@ class AppRouter implements AppRouterInterface
             ]);
         }
 
+        // быстрее, чем рефлексия
         if (!method_exists($class, $method)){
             self::$logger->error("Method '{$method}' not defined at {$prompt} '{$class}'", [ self::$uri, self::$httpMethod, $class ]);
             throw new AppRouterHandlerError("Method '{$method}' not defined at {$prompt} '{$class}'", 500, [
@@ -900,17 +894,17 @@ class AppRouter implements AppRouterInterface
 
     /**
      * Возвращает "внутреннее" имя замыкание, сгенерированное на основе таймштампа (до мс) и аргументов функции
-     * [таймштамп] Closure(LineStart-LineEnd)=аргумент1:аргумент2:аргумент3
+     * Closure(LineStart-LineEnd)=аргумент1:аргумент2:аргумент3
      *
      * Или, если возникло исключение ReflectionException
-     * [таймштамп] Closure(<md5(1, 4096)>)=.
+     * Closure(<md5(1, 4096)>)=.
      *
      * @param $closure
      * @return string
      */
     public static function getClosureInternalName($closure): string
     {
-        $name = "[] Closure(";
+        $name = "Closure(";
 
         try {
             $reflected = new \ReflectionFunction($closure);
@@ -950,24 +944,26 @@ class AppRouter implements AppRouterInterface
      *
      * @param $handler
      * @param bool $is_middleware
-     * @param string $target
-     * @return array|\Closure
+     * @return array|\Closure|string
      */
-    public static function compileHandler($handler, bool $is_middleware = false, string $target = 'default')
+    public static function compileHandler($handler, bool $is_middleware = false)
     {
         if (empty($handler)) {
             return [];
         }
 
+        // closure
         if ($handler instanceof \Closure) {
-            $actor = $handler;
-        } elseif (is_array($handler) || (is_string($handler) && strpos($handler, '@') > 0)) {
-            // [ \Path\To\Class:class, "method" ] or 'Class@method'
+            return $handler;
+        }
 
-            if (is_string($handler)) {
-                list($class, $method) = self::explode($handler, [null, '__invoke'], '@');
-            } else {
+        // [ \Path\To\Class:class, "method" ]
+        if (is_array($handler)) {
+            if (count($handler) == 2) {
                 list($class, $method) = $handler;
+            } else {
+                $class = $handler[0];
+                $method = '__invoke';
             }
 
             self::checkClassExists($class);
@@ -984,25 +980,61 @@ class AppRouter implements AppRouterInterface
                 $i_class = new $class(); //@todo: тут надо бы передавать параметры в конструктор, всякие HTTP_REQUEST, HTTP_RESPONSE
             }
 
-            $actor = [ $i_class, $method ];
-
-        } elseif (strpos($handler, '::')) {
-            // static method
-            list($class, $method) = self::explode($handler, [null, ''], '::');
-
-            self::checkClassExists($class, true);
-            self::checkMethodExists($class, $method, true);
-
-            $actor = [ $class, $method ];
-
-        }  else {
-            // function
-            self::checkFunctionExists($handler);
-
-            $actor = $handler;
+            return [ $i_class, $method ];
         }
 
-        return $actor;
+        // isString
+        if (is_string($handler) && str_contains($handler, '@')) {
+            // 'Class@method'
+
+            list($class, $method) = self::explode($handler, [null, '__invoke'], '@');
+            self::checkClassExists($class);
+            self::checkMethodExists($class, $method);
+
+            if ($is_middleware) {
+                if (array_key_exists($class, self::$instances_middlewares)) {
+                    $i_class = self::$instances_middlewares[$class];
+                } else {
+                    $i_class = self::$instances_middlewares[$class] = new $class();
+                }
+
+                $handler = [ $i_class, $method ];
+
+            } else {
+                // не миддлвар, а целевой вызов.
+                try {
+                    $reflection = new \ReflectionClass($class);
+                    $reflected_method = $reflection->getMethod($method);
+
+                    if ($reflected_method->isStatic()) {
+                        $handler = [ $class, $method ];
+                    } else {
+                        //@todo: тут надо бы передавать параметры в конструктор, всякие HTTP_REQUEST, HTTP_RESPONSE
+                        $handler = [ new $class(), $method ];
+                    }
+
+                } catch (\ReflectionException $e) {
+                    // метод не существует!
+                    // но это исключение никогда не будет кинуто, потому что наличие метода проверено выше
+
+                    self::$logger->error("Method '{$method}' not defined at '{$class}'", [ self::$uri, self::$httpMethod, $class ]);
+                    throw new AppRouterHandlerError("Method '{$method}' not defined at '{$class}'", 500, [
+                        'uri'       =>  self::$uri,
+                        'method'    =>  self::$httpMethod,
+                        'info'      =>  self::$routeInfo,
+                        'rule'      =>  self::$routeRule
+                    ]);
+                }
+            }
+
+            return $handler;
+        }
+
+        // остался вариант "функция"
+
+        self::checkFunctionExists($handler);
+
+        return $handler;
     }
 
 
@@ -1023,8 +1055,51 @@ class AppRouter implements AppRouterInterface
         }, $default, \explode($separator, $income));
     }
 
+    /**
+     * Experimental - use only if str_contains('{')
+     *
+     * @param $route
+     * @return array|string|string[]|null
+     */
+    private static function applyAliases($route)
+    {
+        return preg_replace_callback('/\{(\w+)\}/', function($matches) {
+            $paramName = $matches[1];
+            if (isset(self::$stack_aliases[$paramName])) {
+                return '{' . $paramName . ':' . self::$stack_aliases[$paramName] . '}';
+            }
+            return $matches[0]; // Если алиас не найден, оставляем как есть
+        }, $route);
+    }
+
+    /**
+     * Experimental - addAlias
+     *
+     * @param array|string $name
+     * @param string|null $regexp
+     * @return void
+     */
+    public static function addAlias(array|string $name, ?string $regexp = null): void
+    {
+        if (is_array($name)) {
+            foreach ($name as $_v) {
+                self::addAlias(key($_v), current($_v));
+            }
+        } elseif (!is_null($regexp)) {
+            self::$stack_aliases[$name] = $regexp;
+        }
+    }
+
+    /**
+     * Experimental: возвращает список алиасов
+     *
+     * @return array
+     */
+    public static function getAliases():array
+    {
+        return self::$stack_aliases;
+    }
+
 }
-
-
 
 # -eof-

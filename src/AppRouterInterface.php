@@ -10,17 +10,36 @@ interface AppRouterInterface
      * Конструктор, инициализирующий статик класс
      *
      * @param LoggerInterface|null $logger
-     * @param array $options
+     * @param string $namespace
+     * @param string $prefix
+     * @param bool $allowEmptyGroups
+     * @param bool $allowEmptyHandlers
      */
-    public function __construct(LoggerInterface $logger = null, array $options = []);
+    public function __construct(
+        LoggerInterface $logger = null,
+        string $namespace = '',
+        string $prefix = '',
+        bool $allowEmptyGroups = false,
+        bool $allowEmptyHandlers = false,
+    );
 
     /**
      * Инициализирует статик-класс
      *
      * @param LoggerInterface|null $logger
-     * @param array $options
+     *
+     * @param string $namespace
+     * @param string $prefix
+     * @param bool $allowEmptyGroups
+     * @param bool $allowEmptyHandlers
      */
-    public static function init(LoggerInterface $logger = null, array $options = []);
+    public static function init(
+        LoggerInterface $logger = null,
+        string $namespace = '',
+        string $prefix = '',
+        bool $allowEmptyGroups = false,
+        bool $allowEmptyHandlers = false,
+    );
 
     /**
      * Устанавливает кастомные опции:
@@ -30,24 +49,25 @@ interface AppRouterInterface
      *
      * @param $name
      * @param $value
-     * @return mixed
+     * @return void
      */
-    public static function setOption($name, $value = null);
+    public static function setOption($name, $value = null): void;
 
     /**
      * Устанавливает namespace по умолчанию (дублируется в опциях init() )
      *
      * @param string $namespace
+     * @return void
      */
-    public static function setDefaultNamespace(string $namespace = '');
+    public static function setDefaultNamespace(string $namespace = ''):void;
 
     /**
-     * @todo: Указывает нэймспейс для миддлваров-посредников
+     * @todo: Указывает нэймспейс для миддлваров-посредников НЕ РЕАЛИЗОВАНО
      *
      * @param string $namespace
      * @return void
      */
-    public static function setMiddlewaresNamespace(string $namespace = '');
+    public static function setMiddlewaresNamespace(string $namespace = ''): void;
 
     /**
      * Helper method GET
@@ -57,7 +77,7 @@ interface AppRouterInterface
      * @param $name - route internal name
      */
     public static function get($route, $handler, $name = null);
-    
+
     /**
      * Helper method POST
      *
@@ -66,7 +86,7 @@ interface AppRouterInterface
      * @param null $name
      */
     public static function post($route, $handler, $name = null);
-    
+
     /**
      * Helper method PUT
      *
@@ -75,7 +95,7 @@ interface AppRouterInterface
      * @param null $name
      */
     public static function put($route, $handler, $name = null);
-    
+
     /**
      * Helper method PATCH
      *
@@ -84,7 +104,7 @@ interface AppRouterInterface
      * @param null $name
      */
     public static function patch($route, $handler, $name = null);
-    
+
     /**
      * Helper method DELETE
      *
@@ -93,7 +113,7 @@ interface AppRouterInterface
      * @param null $name
      */
     public static function delete($route, $handler, $name = null);
-    
+
     /**
      * Helper method HEAD
      *
@@ -102,9 +122,20 @@ interface AppRouterInterface
      * @param null $name
      */
     public static function head($route, $handler, $name = null);
-    
+
+    /**
+     * Устанавливает роут для ВСЕХ методов
+     *
+     * @param $route
+     * @param $handler
+     * @param $name
+     * @return mixed
+     */
+    public static function any($route, $handler, $name = null);
+
     /**
      * Add route method
+     * Добавляет роут с прямым указанием метода
      *
      * @param $httpMethod
      * @param $route
@@ -117,14 +148,15 @@ interface AppRouterInterface
      * Create routing group with options
      * Создает группу роутов
      *
-     * @param string $prefix    - prefix (URL prefix)
+     * @param string $prefix - prefix (URL prefix)
      * @param string $namespace - namespace
-     * @param null $before      - before (middleware handler)
-     * @param null $after       - after (middleware handler)
+     * @param null $before - before (middleware handler)
+     * @param null $after - after (middleware handler)
      * @param callable|null $callback inline callback function with group definition
-     * @return mixed
+     * @param array $alias
+     * @return bool
      */
-    public static function group(string $prefix = '', string $namespace = '', $before = null, $after = null, callable $callback = null);
+    public static function group(string $prefix = '', string $namespace = '', $before = null, $after = null, callable $callback = null, array $alias = []): bool;
 
     /**
      * Dispatch routing
@@ -133,8 +165,14 @@ interface AppRouterInterface
      */
     public static function dispatch();
 
-
-    public static function getRouter($name = '', array $parts = []);
+    /**
+     * Возвращает информацию о роуте по имени
+     *
+     * @param string $name - имя роута
+     * @param array $parts - массив замен именованных групп на параметры
+     * @return string|array
+     */
+    public static function getRouter(string $name = '', array $parts = []): array|string;
 
     /**
      * Возвращает информацию о текущем роутинге
@@ -144,9 +182,11 @@ interface AppRouterInterface
     public static function getRoutingInfo();
 
     /**
-     * @return mixed
+     * @todo
+     *
+     * @return array
      */
-    public static function getRoutersNames();
+    public static function getRoutersNames(): array;
 
     /**
      * Возвращает список объявленных роутов: [ 'method route' => [ handler, namespace, name ]
