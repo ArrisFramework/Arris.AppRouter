@@ -62,7 +62,8 @@ interface AppRouterInterface
     public static function setDefaultNamespace(string $namespace = ''):void;
 
     /**
-     * @todo: Указывает нэймспейс для миддлваров-посредников НЕ РЕАЛИЗОВАНО
+     * Указывает нэймспейс для миддлваров-посредников
+     * @todo: НЕ РЕАЛИЗОВАНО
      *
      * @param string $namespace
      * @return void
@@ -182,8 +183,6 @@ interface AppRouterInterface
     public static function getRoutingInfo();
 
     /**
-     * @todo
-     *
      * @return array
      */
     public static function getRoutersNames(): array;
@@ -193,6 +192,22 @@ interface AppRouterInterface
      *
      * @return array
      */
-    public static function getRoutingRules();
+    public static function getRoutingRules(): array;
+
+    /**
+     * Experimental - addAlias
+     *
+     * @param array|string $name
+     * @param string|null $regexp
+     * @return void
+     */
+    public static function addAlias(array|string $name, ?string $regexp = null): void;
+
+    /**
+     * Experimental: возвращает список алиасов
+     *
+     * @return array
+     */
+    public static function getAliases():array;
 
 }

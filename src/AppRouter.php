@@ -4,6 +4,7 @@ namespace Arris;
 
 use Arris\AppRouter\FastRoute\ConfigureRoutes;
 use Arris\AppRouter\FastRoute\Dispatcher;
+use Arris\AppRouter\Helper;
 use Arris\AppRouter\Stack;
 use Arris\Exceptions\AppRouterHandlerError;
 use Arris\Exceptions\AppRouterMethodNotAllowedException;
@@ -91,13 +92,6 @@ class AppRouter implements AppRouterInterface
     private static string $current_prefix = '';
 
     /**
-     * Default replace pattern
-     *
-     * @var string
-     */
-    // private static string $routeReplacePattern = '%%$1%%';
-
-    /**
      * Current Routing Info
      *
      * @var Dispatcher\Result\ResultInterface
@@ -152,6 +146,13 @@ class AppRouter implements AppRouterInterface
     private static array $routeRule = [];
 
     /**
+     * STUB для внутренних опций
+     *
+     * @var array
+     */
+    private static array $options = [];
+
+    /**
      * Разрешать ли пустые группы (без роутов, но с опциями или миддлварами)
      *
      * @var bool $option_allow_empty_groups
@@ -193,8 +194,10 @@ class AppRouter implements AppRouterInterface
      */
     private static bool $option_use_aliases = false;
 
-    /* ============================================================================================================================================*/
 
+    /**
+     * @inheritDoc
+     */
     public function __construct(
         LoggerInterface $logger = null,
         string $namespace = '',
@@ -205,6 +208,9 @@ class AppRouter implements AppRouterInterface
         self::init($logger, namespace: $namespace, prefix: $prefix, allowEmptyGroups: $allowEmptyGroups, allowEmptyHandlers: $allowEmptyHandlers);
     }
 
+    /**
+     * @inheritDoc
+     */
     public static function init(
         LoggerInterface $logger = null,
         string $namespace = '',
@@ -280,12 +286,7 @@ class AppRouter implements AppRouterInterface
         self::$current_namespace = $namespace;
     }
 
-    /**
-     * Указывает нэймспейс для миддлваров-посредников
-     *
-     * @param string $namespace
-     * @return void
-     */
+
     public static function setMiddlewaresNamespace(string $namespace = ''):void
     {
         // return true;
@@ -343,6 +344,7 @@ class AppRouter implements AppRouterInterface
             'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
         ];
     }
+
 
     public static function put($route, $handler, $name = null)
     {
@@ -637,7 +639,6 @@ class AppRouter implements AppRouterInterface
                 }
 
                 $r->addRoute($rule['httpMethod'], $route, $handler, $rule);
-                // $r->addRoute($rule['httpMethod'], $rule['route'], $handler, $rule);
             }
         });
 
@@ -746,7 +747,7 @@ class AppRouter implements AppRouterInterface
     /**
      * @inheritDoc
      *
-     * @return array|Dispatcher\Result\ResultInterface
+     * @return Dispatcher\Result\ResultInterface
      */
     public static function getRoutingInfo()
     {
@@ -794,7 +795,7 @@ class AppRouter implements AppRouterInterface
         }
 
         if ($handler instanceof \Closure) {
-            $internal_name = self::getClosureInternalName($handler);
+            $internal_name = Helper::getClosureInternalName($handler);
         } elseif (is_array($handler)) {
 
             // Хэндлер может быть массивом, но пустым. Вообще, это ошибка, поэтому генерим имя на основе md5 роута и метода.
@@ -822,7 +823,7 @@ class AppRouter implements AppRouterInterface
      * @param bool $is_static
      * @return void
      */
-    public static function checkClassExists($class, bool $is_static = false): void
+    private static function checkClassExists($class, bool $is_static = false): void
     {
         // быстрее, чем рефлексия
         if (!class_exists($class)){
@@ -845,7 +846,7 @@ class AppRouter implements AppRouterInterface
      * @param bool $is_static
      * @return void
      */
-    public static function checkMethodExists($class, $method, bool $is_static = false): void
+    private static function checkMethodExists($class, $method, bool $is_static = false): void
     {
         $prompt = $is_static ? 'static class' : 'class';
 
@@ -878,7 +879,7 @@ class AppRouter implements AppRouterInterface
      * @return bool
      * @throws AppRouterHandlerError
      */
-    public static function checkFunctionExists($handler): bool
+    private static function checkFunctionExists($handler): bool
     {
         if (!function_exists($handler)){
             self::$logger->error("Handler function '{$handler}' not found", [ self::$uri, self::$httpMethod, $handler ]);
@@ -893,52 +894,6 @@ class AppRouter implements AppRouterInterface
     }
 
     /**
-     * Возвращает "внутреннее" имя замыкание, сгенерированное на основе таймштампа (до мс) и аргументов функции
-     * Closure(LineStart-LineEnd)=аргумент1:аргумент2:аргумент3
-     *
-     * Или, если возникло исключение ReflectionException
-     * Closure(<md5(1, 4096)>)=.
-     *
-     * @param $closure
-     * @return string
-     */
-    public static function getClosureInternalName($closure): string
-    {
-        $name = "Closure(";
-
-        try {
-            $reflected = new \ReflectionFunction($closure);
-            $args = implode(':',
-                // создаем статичную функцию и сразу вызываем
-                (static function ($r) {
-                    return
-                        array_map(
-                        // обработчик
-                            static function($v)
-                            {
-                                return is_object($v) ? $v->name : $v;
-                            },
-                            // входной массив
-                            array_merge(
-                                $r->getParameters(),
-                                array_keys(
-                                    $r->getStaticVariables()
-                                )
-                            )
-                        );
-                })
-                ($reflected) // а это её аргумент
-            ); // эта скобочка относится к implode
-            // "value:value2:s1:s2"
-            $name .= $reflected->getStartLine() . "-" . $reflected->getEndLine() . ")=" . $args;
-        } catch (\ReflectionException $e) {
-            $name .= md5(mt_rand(1, PHP_MAXPATHLEN)) . ")=.";
-        }
-
-        return $name;
-    }
-
-    /**
      * Компилирует хэндлер из строчки, замыкания или массива [класс, метод] в действующий хэндлер
      * с отловом ошибок несуществования роута
      *
@@ -946,7 +901,7 @@ class AppRouter implements AppRouterInterface
      * @param bool $is_middleware
      * @return array|\Closure|string
      */
-    public static function compileHandler($handler, bool $is_middleware = false)
+    private static function compileHandler($handler, bool $is_middleware = false): array|\Closure|string
     {
         if (empty($handler)) {
             return [];
@@ -987,7 +942,7 @@ class AppRouter implements AppRouterInterface
         if (is_string($handler) && str_contains($handler, '@')) {
             // 'Class@method'
 
-            list($class, $method) = self::explode($handler, [null, '__invoke'], '@');
+            list($class, $method) = Helper::explode($handler, [null, '__invoke'], '@');
             self::checkClassExists($class);
             self::checkMethodExists($class, $method);
 
@@ -1037,31 +992,13 @@ class AppRouter implements AppRouterInterface
         return $handler;
     }
 
-
-    /**
-     * Выполняет explode строки роута с учетом дефолтной маски
-     * Заменяет list($a, $b) = explode(separator, string) с дефолтными значениями элементов
-     * Хотел назвать это replace_array_callback(), но передумал
-     *
-     * @param $income
-     * @param array $default
-     * @param string $separator
-     * @return array
-     */
-    private static function explode($income, array $default = [ null, '__invoke' ], string $separator = '@'): array
-    {
-        return array_map(static function($first, $second) {
-            return empty($second) ? $first : $second;
-        }, $default, \explode($separator, $income));
-    }
-
     /**
      * Experimental - use only if str_contains('{')
      *
      * @param $route
      * @return array|string|string[]|null
      */
-    private static function applyAliases($route)
+    private static function applyAliases($route): array|string|null
     {
         return preg_replace_callback('/\{(\w+)\}/', function($matches) {
             $paramName = $matches[1];
@@ -1073,11 +1010,7 @@ class AppRouter implements AppRouterInterface
     }
 
     /**
-     * Experimental - addAlias
-     *
-     * @param array|string $name
-     * @param string|null $regexp
-     * @return void
+     * @inheritDoc
      */
     public static function addAlias(array|string $name, ?string $regexp = null): void
     {
@@ -1091,9 +1024,7 @@ class AppRouter implements AppRouterInterface
     }
 
     /**
-     * Experimental: возвращает список алиасов
-     *
-     * @return array
+     * @inheritDoc
      */
     public static function getAliases():array
     {
@@ -1102,4 +1033,4 @@ class AppRouter implements AppRouterInterface
 
 }
 
-# -eof-
+# -eof- #
