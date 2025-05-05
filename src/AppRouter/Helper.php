@@ -6,11 +6,12 @@ use Closure;
 
 class Helper implements AppRouterHelperInterface
 {
-    public static function dumpRoutingRulesWeb(array $routingRules, bool $withMiddlewares = true): string
+    public static function dumpRoutingRulesWeb(array $routingRules, bool $withMiddlewares = true, bool $withIcons = false, bool $withFooter = false): string
     {
-        $table = "<table border='1' cellpadding='5' cellspacing='0' width='100%'>";
+        $table = "<table border='1' cellpadding='5' cellspacing='0' width='100%' style='width:100%; border-collapse: collapse;'>";
+        $table .= "<thead>";
 
-        $table .= "<thead><tr>
+        $table .= "<tr>
         <th style='font-size: small'>Method</th>
         <th>Route</th>
         <th>Handler</th>
@@ -32,7 +33,7 @@ class Helper implements AppRouterHelperInterface
             if (is_array($route['handler']) && count($route['handler']) === 2) {
                 $handler = "{$route['handler'][0]}@{$route['handler'][1]}";
             } elseif ($route['handler'] instanceof Closure) {
-                $handler = 'Closure' . '<br>' . $route['backtrace']['file'] . '#L=' . $route['backtrace']['line'];
+                $handler = 'Closure at' . '<br>' . $route['backtrace']['file'] . '#L=' . $route['backtrace']['line'];
             } elseif (isset($route['handler']['__invoke'])) {
                 $handler = 'Invokable Class';
             }
@@ -41,40 +42,16 @@ class Helper implements AppRouterHelperInterface
             $name = $route['name'] ?? '--';
 
             // Before Middlewares
-            $beforeMiddlewares = [];
-
-            if ($withMiddlewares) {
-                $beforeMiddlewaresStack = $route['middlewares']['before']; /* @var \Arris\AppRouter\Stack $beforeMiddlewaresStack */
-
-                if ($beforeMiddlewaresStack instanceof \Arris\AppRouter\Stack) {
-                    foreach ($beforeMiddlewaresStack->toArray() as $middleware) {
-                        if (is_array($middleware) && count($middleware) === 2) {
-                            $beforeMiddlewares[] = "{$middleware[0]}@{$middleware[1]}";
-                        }
-                    } // foreach
-                } // if instanceOf
-            } // if $withMiddlewares
-
-            $beforeMiddlewaresStr = implode('<br>', $beforeMiddlewares) ?: '-';
+            $beforeMiddlewaresStr = $withMiddlewares ? self::formatMiddlewares($route['middlewares']['before']) : '-';
 
             // After Middlewares
-            $afterMiddlewares = [];
+            $afterMiddlewaresStr = $withMiddlewares ? self::formatMiddlewares($route['middlewares']['after']) : '-';
 
-            if ($withMiddlewares) {
-                $afterMiddlewaresStack = $route['middlewares']['after']; /* @var \Arris\AppRouter\Stack $afterMiddlewaresStack */
-                if ($afterMiddlewaresStack instanceof \Arris\AppRouter\Stack) {
-                    foreach ($afterMiddlewaresStack->toArray() as $middleware) {
-                        if (is_array($middleware)) {
-                            $afterMiddlewares[] = "{$middleware[0]}@{$middleware[1]}";
-                        }
-                    } // foreach
-                } // if instanceOf
-            } // if $withMiddlewares
+            $colorStyle = self::getMethodColor($route['httpMethod']);
+            $methodIcon = $withIcons ? self::getMethodIcon($route['httpMethod']) : "";
 
-            $afterMiddlewaresStr = implode('<br>', $afterMiddlewares) ?: '-';
-
-            $table .= "<tr>
-            <td>{$route['httpMethod']}</td>
+            $table .= "<tr style='{$colorStyle}'>
+            <td>{$methodIcon}{$route['httpMethod']}</td>
             <td>{$route['route']}</td>
             <td>{$handler}</td>
             <td>{$name}</td>";
@@ -86,8 +63,80 @@ class Helper implements AppRouterHelperInterface
             $table .= "</tr>";
         }
 
+        if ($withFooter) {
+            $table .= "<tfoot><tr>
+        <th style='font-size: small'>Method</th>
+        <th>Route</th>
+        <th>Handler</th>
+        <th>Name</th>";
+
+            if ($withMiddlewares) {
+                $table .= "<th>Before Middlewares</th>
+        <th>After Middlewares</th>";
+            }
+
+            $table .= "</tr></tfoot>";
+        }
+
         $table .= "</tbody></table>";
         return $table;
+    }
+
+    /**
+     * Стилизация строки для dumpRoutingRulesWeb
+     *
+     * @param string $method
+     * @return string
+     */
+    private static function getMethodColor(string $method): string
+    {
+        return match(strtoupper($method)) {
+            'GET'    => 'background: #E6F7FF; color: #003366;',
+            'POST'   => 'background: #E8F5E9; color: #1B5E20;',
+            'PUT',
+            'PATCH'  => 'background: #FFF3E0; color: #E65100;', // Один стиль для PUT и PATCH
+            'DELETE' => 'background: #FFEBEE; color: #C62828;',
+            default  => 'background: #F5F5F5; color: #212121;'
+        };
+    }
+
+    /**
+     * Форматирует миддлвары в строку
+     *
+     * @param Stack|null $middlewares
+     * @param string $separator
+     * @param string $default
+     * @return string
+     */
+    private static function formatMiddlewares(\Arris\AppRouter\Stack $middlewares = null, string $separator = '<br>', string $default = '-'):string
+    {
+        $result = [];
+        if ($middlewares instanceof \Arris\AppRouter\Stack) {
+            foreach ($middlewares->toArray() as $middleware) {
+                if (is_array($middleware)) {
+                    $result[] = $middleware[0] . "@" . ( $middleware[1] ?? '__invoke' );
+                }
+                if (is_callable($middleware)) {
+                    $result[] = 'Closure';
+                }
+            }
+        }
+        return implode($separator, $result) ?: $default;
+    }
+
+    /**
+     * Иконка для метода
+     *
+     * @param string $method
+     * @return string
+     */
+    private static function getMethodIcon(string $method): string {
+        $icons = [
+            'GET'    => '🔵 ',
+            'POST'   => '🟢 ',
+            'DELETE' => '🔴 '
+        ];
+        return $icons[strtoupper($method)] ?? '';
     }
 
     public static function dumpRoutingRulesCLI(array $routingRules, bool $withMiddlewares = false):string

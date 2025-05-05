@@ -11,9 +11,11 @@ interface AppRouterHelperInterface
      *
      * @param array $routingRules
      * @param bool $withMiddlewares
+     * @param bool $withIcons
+     * @param bool $withFooter
      * @return string
      */
-    public static function dumpRoutingRulesWeb(array $routingRules, bool $withMiddlewares = true): string;
+    public static function dumpRoutingRulesWeb(array $routingRules, bool $withMiddlewares = true, bool $withIcons = false, bool $withFooter = false): string;
 
     /**
      * Превращает дамп внутренней таблицы роутов в CLI-таблицу

@@ -47,11 +47,11 @@ interface AppRouterInterface
      * - allowEmptyHandlers - разрешить ли пустые хэндлеры (НЕТ)
      * - getRouterDefaultValue - роут по-умолчанию, если имя не найдено (/)
      *
-     * @param $name
-     * @param $value
+     * @param string $name
+     * @param null $value
      * @return void
      */
-    public static function setOption($name, $value = null): void;
+    public static function setOption(string $name, $value = null): void;
 
     /**
      * Устанавливает namespace по умолчанию (дублируется в опциях init() )

@@ -13,21 +13,15 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 use function array_key_exists;
-use function array_keys;
-use function array_map;
-use function array_merge;
 use function call_user_func_array;
 use function class_exists;
 use function debug_backtrace;
 use function function_exists;
-use function implode;
 use function is_array;
 use function is_null;
-use function is_object;
 use function is_string;
 use function md5;
 use function method_exists;
-use function mt_rand;
 use function preg_replace;
 use function preg_split;
 use function trim;
@@ -69,12 +63,12 @@ class AppRouter implements AppRouterInterface
     /**
      * @var LoggerInterface
      */
-    private static $logger;
+    private static LoggerInterface $logger;
 
     /**
-     * @var
+     * @var string
      */
-    private static $httpMethod;
+    private static string $httpMethod;
 
     /**
      * @var string
@@ -131,7 +125,6 @@ class AppRouter implements AppRouterInterface
 
     /**
      * В планах: дать возможность указывать нэйспейс для миддлваров, но не реализован. Зачем?
-     * @var string
      */
     // private static $middlewares_namespace = '';
 
@@ -193,7 +186,6 @@ class AppRouter implements AppRouterInterface
      * @var bool
      */
     private static bool $option_use_aliases = false;
-
 
     /**
      * @inheritDoc
@@ -259,26 +251,15 @@ class AppRouter implements AppRouterInterface
         // self::$routeReplacePattern = $routeReplacePattern;
     }
 
-    public static function setOption($name, $value = null):void
+    public static function setOption(string $name, $value = null):void
     {
-        switch ($name) {
-            case self::OPTION_ALLOW_EMPTY_GROUPS: {
-                self::$option_allow_empty_groups = (bool)$value;
-                break;
-            }
-            case self::OPTION_ALLOW_EMPTY_HANDLERS: {
-                self::$option_allow_empty_handlers = (bool)$value;
-                break;
-            }
-            case self::OPTION_DEFAULT_ROUTE: {
-                self::$option_getroute_default_value = $value;
-                break;
-            }
-            case self::OPTION_USE_ALIASES: {
-                self::$option_use_aliases = (bool)$value;
-                break;
-            }
-        }
+        match ($name) {
+            self::OPTION_ALLOW_EMPTY_GROUPS     => self::$option_allow_empty_groups     = (bool)$value,
+            self::OPTION_ALLOW_EMPTY_HANDLERS   => self::$option_allow_empty_handlers   = (bool)$value,
+            self::OPTION_DEFAULT_ROUTE          => self::$option_getroute_default_value = $value,
+            self::OPTION_USE_ALIASES            => self::$option_use_aliases            = (bool)$value,
+            default => null,
+        };
     }
 
     public static function setDefaultNamespace(string $namespace = ''):void
@@ -645,9 +626,11 @@ class AppRouter implements AppRouterInterface
         // Fetch method and URI from somewhere
         self::$routeInfo = $routeInfo = (self::$dispatcher->dispatcher())->dispatch(self::$httpMethod, self::$uri);
 
-        $state = $routeInfo[0]; // тут ВСЕГДА что-то есть
-        $handler = $routeInfo[1] ?? [];
-        $method_parameters = $routeInfo[2] ?? [];
+        // $state = $routeInfo[0]; // тут ВСЕГДА что-то есть
+        // $handler = $routeInfo[1] ?? [];
+        // $method_parameters = $routeInfo[2] ?? [];
+
+        [$state, $handler, $method_parameters] = $routeInfo + [null, null, []];
 
         // dispatch errors
         if ($state === Dispatcher::NOT_FOUND) {
@@ -671,7 +654,7 @@ class AppRouter implements AppRouterInterface
         }
 
         // Route Rule доступен только для Matched-роутов.
-        self::$routeRule = $rule = $routeInfo[3];
+        self::$routeRule = $rule = $routeInfo[3] ?? [];
 
         $actor = self::compileHandler($handler, false, 'default');
 
@@ -914,12 +897,7 @@ class AppRouter implements AppRouterInterface
 
         // [ \Path\To\Class:class, "method" ]
         if (is_array($handler)) {
-            if (count($handler) == 2) {
-                list($class, $method) = $handler;
-            } else {
-                $class = $handler[0];
-                $method = '__invoke';
-            }
+            [$class, $method] = $handler + [null, '__invoke'];
 
             self::checkClassExists($class);
             self::checkMethodExists($class, $method);
@@ -934,6 +912,14 @@ class AppRouter implements AppRouterInterface
                 // не миддлвар, а целевой вызов.
                 $i_class = new $class(); //@todo: тут надо бы передавать параметры в конструктор, всякие HTTP_REQUEST, HTTP_RESPONSE
             }
+            /*
+            // Deepseek change:
+            if ($is_middleware) {
+                $i_class = self::$instances_middlewares[$class] ??= new $class();
+                return [$i_class, $method];
+            }
+            return [new $class(), $method];
+             */
 
             return [ $i_class, $method ];
         }
