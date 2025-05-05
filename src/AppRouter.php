@@ -626,11 +626,13 @@ class AppRouter implements AppRouterInterface
         // Fetch method and URI from somewhere
         self::$routeInfo = $routeInfo = (self::$dispatcher->dispatcher())->dispatch(self::$httpMethod, self::$uri);
 
-        // $state = $routeInfo[0]; // тут ВСЕГДА что-то есть
-        // $handler = $routeInfo[1] ?? [];
-        // $method_parameters = $routeInfo[2] ?? [];
+        $state = $routeInfo[0]; // тут ВСЕГДА что-то есть
+        $handler = $routeInfo[1] ?? [];
+        $method_parameters = $routeInfo[2] ?? [];
 
-        [$state, $handler, $method_parameters] = $routeInfo + [null, null, []];
+        // Так нельзя:
+        // [$state, $handler, $method_parameters] = $routeInfo + [null, null, []];
+        // Fatal error: Uncaught TypeError: Unsupported operand types: Arris\AppRouter\FastRoute\Dispatcher\Result\Matched + array
 
         // dispatch errors
         if ($state === Dispatcher::NOT_FOUND) {
