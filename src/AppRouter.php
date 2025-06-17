@@ -626,13 +626,12 @@ class AppRouter implements AppRouterInterface
         // Fetch method and URI from somewhere
         self::$routeInfo = $routeInfo = (self::$dispatcher->dispatcher())->dispatch(self::$httpMethod, self::$uri);
 
+        // несмотря на то, что $routeInfo - Arris\AppRouter\FastRoute\Dispatcher\Result\Matched - доступ по [N] возможен, поскольку
+        // класс реализует метод ArrayAccess
+        //
         $state = $routeInfo[0]; // тут ВСЕГДА что-то есть
         $handler = $routeInfo[1] ?? [];
         $method_parameters = $routeInfo[2] ?? [];
-
-        // Так нельзя:
-        // [$state, $handler, $method_parameters] = $routeInfo + [null, null, []];
-        // Fatal error: Uncaught TypeError: Unsupported operand types: Arris\AppRouter\FastRoute\Dispatcher\Result\Matched + array
 
         // dispatch errors
         if ($state === Dispatcher::NOT_FOUND) {
@@ -655,8 +654,8 @@ class AppRouter implements AppRouterInterface
             ]);
         }
 
-        // Route Rule доступен только для Matched-роутов.
-        self::$routeRule = $rule = $routeInfo[3] ?? [];
+        // Route Rule доступен только для Matched-роутов - 3=extra parameters - он всегда есть и не пустой
+        self::$routeRule = $rule = $routeInfo[3];
 
         $actor = self::compileHandler($handler, false, 'default');
 
@@ -899,7 +898,14 @@ class AppRouter implements AppRouterInterface
 
         // [ \Path\To\Class:class, "method" ]
         if (is_array($handler)) {
-            [$class, $method] = $handler + [null, '__invoke'];
+            // [$class, $method] = $handler + [null, '__invoke']; // Recommended by DeepSeek
+
+            if (count($handler) == 2) {
+                list($class, $method) = $handler;
+            } else {
+                $class = $handler[0];
+                $method = '__invoke';
+            }
 
             self::checkClassExists($class);
             self::checkMethodExists($class, $method);
