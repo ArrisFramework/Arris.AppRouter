@@ -18,6 +18,7 @@ use function class_exists;
 use function debug_backtrace;
 use function function_exists;
 use function is_array;
+use function is_callable;
 use function is_null;
 use function is_string;
 use function md5;
@@ -46,12 +47,12 @@ class AppRouter implements AppRouterInterface
     ];
 
     /**
-     * @var Dispatcher
+     * @var
      */
     private static $dispatcher;
 
     /**
-     * @var array
+     * @var array<string, array>
      */
     private static array $rules = [];
 
@@ -76,7 +77,7 @@ class AppRouter implements AppRouterInterface
     private static string $uri = '';
 
     /**
-     * @var array
+     * @var array<string, string>
      */
     public static array $route_names = [];
 
@@ -197,7 +198,13 @@ class AppRouter implements AppRouterInterface
         bool $allowEmptyGroups = false,
         bool $allowEmptyHandlers = false,
     ) {
-        self::init($logger, namespace: $namespace, prefix: $prefix, allowEmptyGroups: $allowEmptyGroups, allowEmptyHandlers: $allowEmptyHandlers);
+        self::init(
+            $logger,
+            namespace: $namespace,
+            prefix: $prefix,
+            allowEmptyGroups: $allowEmptyGroups,
+            allowEmptyHandlers: $allowEmptyHandlers
+        );
     }
 
     /**
@@ -274,161 +281,70 @@ class AppRouter implements AppRouterInterface
         // self::$middlewares_namespace = $namespace;
     }
 
-    public static function get($route, $handler, $name = null)
+    /**
+     * Общий метод создания роута
+     *
+     * @param string $httpMethod
+     * @param string $route
+     * @param mixed $handler
+     * @param string|null $name
+     * @return void
+     */
+    private static function addRouteForMethod(string $httpMethod, string $route, mixed $handler, ?string $name): void
     {
-        if (is_null($route) || is_null($handler)) {
+        if ($route === null || $handler === null) { // Проверка на null
             return;
         }
 
-        $key = self::getInternalRuleKey('GET', $handler, $route);
+        $key = self::getInternalRuleKey($httpMethod, $handler, $route);
 
-        if (!is_null($name)) {
+        if ($name !== null) {
             self::$route_names[$name] = self::$current_prefix . $route;
         }
 
-        self::$rules[ $key ] = [
-            'httpMethod'    =>  'GET',
-            'route'         =>  self::$current_prefix . $route,
-            'handler'       =>  $handler,
-            'namespace'     =>  self::$current_namespace,
-            'name'          =>  $name,
-            'middlewares'   =>  [
-                'before'    =>  clone self::$stack_middlewares_before,
-                'after'     =>  clone self::$stack_middlewares_after
+        self::$rules[$key] = [
+            'httpMethod' => $httpMethod,
+            'route' => self::$current_prefix . $route,
+            'handler' => $handler,
+            'namespace' => self::$current_namespace,
+            'name' => $name,
+            'middlewares' => [
+                'before' => clone self::$stack_middlewares_before,
+                'after' => clone self::$stack_middlewares_after
             ],
-            'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
+            'backtrace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
         ];
+    }
+
+
+    public static function get($route, $handler, $name = null)
+    {
+        self::addRouteForMethod('GET', $route, $handler, $name);
     }
 
     public static function post($route, $handler, $name = null)
     {
-        if (is_null($route) || is_null($handler)) {
-            return;
-        }
-
-        $key = self::getInternalRuleKey('POST', $handler, $route);
-
-        if (!is_null($name)) {
-            self::$route_names[$name] = self::$current_prefix . $route;
-        }
-
-        self::$rules[ $key ] = [
-            'httpMethod'    =>  'POST',
-            'route'         =>  self::$current_prefix . $route,
-            'handler'       =>  $handler,
-            'namespace'     =>  self::$current_namespace,
-            'name'          =>  $name,
-            'middlewares'   =>  [
-                'before'    =>  clone self::$stack_middlewares_before,
-                'after'     =>  clone self::$stack_middlewares_after
-            ],
-            'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
-        ];
+        self::addRouteForMethod('POST', $route, $handler, $name);
     }
-
 
     public static function put($route, $handler, $name = null)
     {
-        if (is_null($route) || is_null($handler)) {
-            return;
-        }
-
-        $key = self::getInternalRuleKey('PUT', $handler, $route);
-
-        if (!is_null($name)) {
-            self::$route_names[$name] = self::$current_prefix . $route;
-        }
-
-        self::$rules[ $key ] = [
-            'httpMethod'    =>  'PUT',
-            'route'         =>  self::$current_prefix . $route,
-            'handler'       =>  $handler,
-            'namespace'     =>  self::$current_namespace,
-            'name'          =>  $name,
-            'middlewares'   =>  [
-                'before'    =>  clone self::$stack_middlewares_before,
-                'after'     =>  clone self::$stack_middlewares_after
-            ],
-            'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
-        ];
+        self::addRouteForMethod('PUT', $route, $handler, $name);
     }
 
     public static function patch($route, $handler, $name = null)
     {
-        if (is_null($route) || is_null($handler)) {
-            return;
-        }
-
-        $key = self::getInternalRuleKey('PATCH', $handler, $route);
-
-        if (!is_null($name)) {
-            self::$route_names[$name] = self::$current_prefix . $route;
-        }
-
-        self::$rules[ $key ] = [
-            'httpMethod'    =>  'PATCH',
-            'route'         =>  self::$current_prefix . $route,
-            'handler'       =>  $handler,
-            'namespace'     =>  self::$current_namespace,
-            'name'          =>  $name,
-            'middlewares'   =>  [
-                'before'    =>  clone self::$stack_middlewares_before,
-                'after'     =>  clone self::$stack_middlewares_after
-            ],
-            'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
-        ];
+        self::addRouteForMethod('PATCH', $route, $handler, $name);
     }
 
     public static function delete($route, $handler, $name = null)
     {
-        if (is_null($route) || is_null($handler)) {
-            return;
-        }
-
-        $key = self::getInternalRuleKey('DELETE', $handler, $route);
-
-        if (!is_null($name)) {
-            self::$route_names[$name] = self::$current_prefix . $route;
-        }
-
-        self::$rules[ $key ] = [
-            'httpMethod'    =>  'DELETE',
-            'route'         =>  self::$current_prefix . $route,
-            'handler'       =>  $handler,
-            'namespace'     =>  self::$current_namespace,
-            'name'          =>  $name,
-            'middlewares'   =>  [
-                'before'    =>  clone self::$stack_middlewares_before,
-                'after'     =>  clone self::$stack_middlewares_after
-            ],
-            'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
-        ];
+        self::addRouteForMethod('DELETE', $route, $handler, $name);
     }
 
     public static function head($route, $handler, $name = null)
     {
-        if (is_null($route) || is_null($handler)) {
-            return;
-        }
-
-        $key = self::getInternalRuleKey('HEAD', $handler, $route);
-
-        if (!is_null($name)) {
-            self::$route_names[$name] = self::$current_prefix . $route;
-        }
-
-        self::$rules[ $key ] = [
-            'httpMethod'    =>  'HEAD',
-            'route'         =>  self::$current_prefix . $route,
-            'handler'       =>  $handler,
-            'namespace'     =>  self::$current_namespace,
-            'name'          =>  $name,
-            'middlewares'   =>  [
-                'before'    =>  clone self::$stack_middlewares_before,
-                'after'     =>  clone self::$stack_middlewares_after
-            ],
-            'backtrace'     =>  debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]
-        ];
+        self::addRouteForMethod('HEAD', $route, $handler, $name);
     }
 
     public static function any($route, $handler, $name = null)
@@ -467,8 +383,9 @@ class AppRouter implements AppRouterInterface
         }
 
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0];
+        $methods = (array)$httpMethod;
 
-        foreach ((array)$httpMethod as $method) {
+        foreach ($methods as $method) {
             $httpMethod = $method;
             $key = self::getInternalRuleKey($httpMethod, $handler, $route);
 
@@ -527,7 +444,7 @@ class AppRouter implements AppRouterInterface
             $group_have_after_middleware = true;
         }
 
-        if (\is_callable($callback)) {
+        if (is_callable($callback)) {
             $callback();
         }
 
@@ -558,7 +475,7 @@ class AppRouter implements AppRouterInterface
         if ($name === '*') {
             $set = [];
             foreach (self::$route_names as $name => $route) {
-                $set[ $name ] = self::getRouter($name/*, $parts*/); //@todo: эксперименты!
+                $set[ $name ] = self::getRouter($name/*, $parts*/); //@todo: нужны тесты насчет передачи parts во все роуты
             }
             return $set;
         }
@@ -581,6 +498,20 @@ class AppRouter implements AppRouterInterface
                     );
                 }
             }
+            /*
+            // Qwen3-coder предлает такое решение:
+
+            if (!empty($parts)) {
+                foreach ($parts as $key => $value) {
+                    $pattern = "/\[?\{(" . preg_quote($key, '/') . ")(\:[\\\w+\+])?\}\]?/";
+                    $route = preg_replace(
+                        $pattern,
+                        (string)$value, // Приведение к строке для безопасности
+                        $route
+                    );
+                }
+            }
+            */
 
             // заменяем необязательный слэш в конце на обязательный
             if (self::$option_getroute_replace_optional_slash_to_mandatory) {
