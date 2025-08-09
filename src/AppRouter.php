@@ -685,8 +685,9 @@ class AppRouter implements AppRouterInterface
 
                 if (!is_null($middleware_handler)) {
                     $before = self::compileHandler($middleware_handler, true, 'before');
-
-                    call_user_func_array($before, [ self::$uri, self::$routeInfo ] ); // если вот сейчас передан пустой хэндлер - никакой ошибки не будет - миддлвар просто не вызовется
+                    if (is_callable($before)) {
+                        call_user_func_array($before, [ self::$uri, self::$routeInfo ] );
+                    }
 
                     unset($before);
                 }
@@ -717,8 +718,9 @@ class AppRouter implements AppRouterInterface
 
                 if (!is_null($middleware_handler)) {
                     $after = self::compileHandler($middleware_handler, true, 'after');
-
-                    call_user_func_array($after, [ self::$uri, self::$routeInfo ] );
+                    if (is_callable($after)) {
+                        call_user_func_array($after, [ self::$uri, self::$routeInfo ] );
+                    }
 
                     unset($after);
                 }
@@ -733,7 +735,7 @@ class AppRouter implements AppRouterInterface
      *
      * @return Dispatcher\Result\ResultInterface
      */
-    public static function getRoutingInfo()
+    public static function getRoutingInfo(): Dispatcher\Result\ResultInterface
     {
         return self::$routeInfo;
     }
