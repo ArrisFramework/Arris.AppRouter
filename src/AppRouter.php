@@ -567,6 +567,7 @@ class AppRouter implements AppRouterInterface
         // dispatch errors
         if ($state === Dispatcher::NOT_FOUND) {
             throw new AppRouterNotFoundException("URL not found", 404, [
+                'request'   =>  self::$httpMethod . ' ' . self::$uri,
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
                 'info'      =>  self::$routeInfo,
@@ -578,6 +579,7 @@ class AppRouter implements AppRouterInterface
 
         if ($state === Dispatcher::METHOD_NOT_ALLOWED) {
             throw new AppRouterMethodNotAllowedException(sprintf("Method %s not allowed for URI %s", self::$httpMethod, self::$uri), 405, [
+                'request'   =>  self::$httpMethod . ' ' . self::$uri,
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
                 'info'      =>  self::$routeInfo,
@@ -593,6 +595,7 @@ class AppRouter implements AppRouterInterface
         // Handler пустой или некорректный
         if (empty($handler) && !self::$option_allow_empty_handlers) {
             throw new AppRouterHandlerError("Handler not found or empty", 500, [
+                'request'   =>  self::$httpMethod . ' ' . self::$uri,
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
                 'info'      =>  self::$routeInfo,
@@ -747,6 +750,7 @@ class AppRouter implements AppRouterInterface
             $prompt = $is_static ? "Static class" : "Class";
             self::$logger->error("{$prompt} '{$class}' not defined.", [ self::$uri, self::$httpMethod, $class ]);
             throw new AppRouterHandlerError("{$prompt} '{$class}' not defined", 500, [
+                'request'   =>  self::$httpMethod . ' ' . self::$uri,
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
                 'info'      =>  self::$routeInfo,
@@ -770,6 +774,7 @@ class AppRouter implements AppRouterInterface
         if (empty($method)) {
             self::$logger->error("Method can't be empty at {$prompt} '{$class}'", [ self::$uri, self::$httpMethod, $class ]);
             throw new AppRouterHandlerError("Method can't be empty at {$prompt} '{$class}'", 500, [
+                'request'   =>  self::$httpMethod . ' ' . self::$uri,
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
                 'info'      =>  self::$routeInfo,
@@ -781,6 +786,7 @@ class AppRouter implements AppRouterInterface
         if (!method_exists($class, $method)){
             self::$logger->error("Method '{$method}' not defined at {$prompt} '{$class}'", [ self::$uri, self::$httpMethod, $class ]);
             throw new AppRouterHandlerError("Method '{$method}' not defined at {$prompt} '{$class}'", 500, [
+                'request'   =>  self::$httpMethod . ' ' . self::$uri,
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
                 'info'      =>  self::$routeInfo,
@@ -801,6 +807,7 @@ class AppRouter implements AppRouterInterface
         if (!function_exists($handler)){
             self::$logger->error("Handler function '{$handler}' not found", [ self::$uri, self::$httpMethod, $handler ]);
             throw new AppRouterHandlerError("Handler function '{$handler}' not found", 500, [
+                'request'   =>  self::$httpMethod . ' ' . self::$uri,
                 'uri'       =>  self::$uri,
                 'method'    =>  self::$httpMethod,
                 'info'      =>  self::$routeInfo,
@@ -901,6 +908,7 @@ class AppRouter implements AppRouterInterface
 
                     self::$logger->error("Method '{$method}' not defined at '{$class}'", [ self::$uri, self::$httpMethod, $class ]);
                     throw new AppRouterHandlerError("Method '{$method}' not defined at '{$class}'", 500, [
+                        'request'   =>  self::$httpMethod . ' ' . self::$uri,
                         'uri'       =>  self::$uri,
                         'method'    =>  self::$httpMethod,
                         'info'      =>  self::$routeInfo,
