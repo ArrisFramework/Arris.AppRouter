@@ -217,7 +217,7 @@ AppRouter::setOption('getRouterDefaultValue', '/foo/bar');
 При этом передается расширенная информация по роуту, получить которую можно через метод `$e->getError()`, потому что 
 переопределить финальный метод `getMessage()` НЕВОЗМОЖНО. 
 
-## ЭКСПЕРИМЕНТАЛЬНАЯ ФИЧА: АЛИАСЫ
+## Алиасы (BETA)
 
 Включается с помощью 
 ```php
@@ -304,6 +304,16 @@ BadRouteException: Cannot register two routes matching "/user/([^/]+)" for metho
 **NB:** 
 
 В версии 2.0.* реализованы **только** глобальные алиасы. Возможности задать алиасы для роутов группы (и только для них) нет.
+
+# Отладочные функции
+
+```php
+echo AppRouter\Helper::dumpRoutingRulesWeb( AppRouter::getRoutingRules(), false );die;
+```
+Даст примерно такую картинку:
+
+<img width="1443" height="696" alt="image" src="https://github.com/user-attachments/assets/2d6f4083-9203-4c4e-8408-610cf3277713" />
+
 
 ------
 # ToDo
