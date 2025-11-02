@@ -31,11 +31,15 @@ class Helper implements AppRouterHelperInterface
             // Handler
             $handler = '';
             if (is_array($route['handler']) && count($route['handler']) === 2) {
-                $handler = "{$route['handler'][0]}@{$route['handler'][1]}";
+                $handler = "{$route['handler'][0]}@{$route['handler'][1]}"; // [ Class, method ]
             } elseif ($route['handler'] instanceof Closure) {
-                $handler = 'Closure at' . '<br>' . $route['backtrace']['file'] . '#L=' . $route['backtrace']['line'];
+                $handler = 'Closure at' . '<br>' . $route['backtrace']['file'] . '#L=' . $route['backtrace']['line']; // closure
             } elseif (isset($route['handler']['__invoke'])) {
-                $handler = 'Invokable Class';
+                $handler = 'Invokable Class'; // Class@
+            } elseif (is_string($route['handler']) && !str_contains($route['handler'], '@') && !str_contains($route['handler'], '::')) {
+                $handler = $route['handler'] . '()'; // function
+            } elseif (is_string($route['handler']) && ( str_contains($route['handler'], '@') || str_contains($route['handler'], '::' ) )) {
+                $handler = $route['handler']; // Class@method or Class::method
             }
 
             // Name

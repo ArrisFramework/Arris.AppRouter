@@ -32,6 +32,7 @@ interface AppRouterInterface
      * @param string $prefix
      * @param bool $allowEmptyGroups
      * @param bool $allowEmptyHandlers
+     * @param bool $useAliases
      */
     public static function init(
         LoggerInterface $logger = null,
@@ -39,6 +40,7 @@ interface AppRouterInterface
         string $prefix = '',
         bool $allowEmptyGroups = false,
         bool $allowEmptyHandlers = false,
+        bool $useAliases = false
     );
 
     /**

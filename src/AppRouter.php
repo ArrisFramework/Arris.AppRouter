@@ -216,6 +216,7 @@ class AppRouter implements AppRouterInterface
         string $prefix = '',
         bool $allowEmptyGroups = false,
         bool $allowEmptyHandlers = false,
+        bool $useAliases = false
     )
     {
         // unimplemented options in constructor
@@ -244,6 +245,7 @@ class AppRouter implements AppRouterInterface
 
         self::$option_allow_empty_groups = $allowEmptyGroups;
         self::$option_allow_empty_handlers = $allowEmptyHandlers;
+        self::$option_use_aliases = $useAliases;
 
         self::$stack_prefix = new Stack();
 
@@ -376,7 +378,7 @@ class AppRouter implements AppRouterInterface
         }
     }
 
-    public static function addRoute($httpMethod, $route, $handler, $name = null)
+    public static function addRoute($httpMethod, $route, $handler, $name = null): void
     {
         if (is_null($route) || is_null($handler)) {
             return;
@@ -636,7 +638,7 @@ class AppRouter implements AppRouterInterface
         // - HTTP_Response (implements ArrayAccess)
         // это нам даст ОО-подход к $_REQUEST итд.
         if (!empty($actor)) {
-            call_user_func_array($actor, $method_parameters);
+            call_user_func_array($actor, $method_parameters); // @todo: invoke actor
         }
 
         /**
