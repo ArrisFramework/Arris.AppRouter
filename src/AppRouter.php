@@ -349,6 +349,11 @@ class AppRouter implements AppRouterInterface
         self::addRouteForMethod('HEAD', $route, $handler, $name);
     }
 
+    public static function options($route, $handler, $name = null)
+    {
+        self::addRouteForMethod('OPTIONS', $route, $handler, $name);
+    }
+
     public static function any($route, $handler, $name = null)
     {
         if (is_null($route) || is_null($handler)) {
@@ -634,8 +639,8 @@ class AppRouter implements AppRouterInterface
         // self::$uri, self::$routeInfo как именованные параметры и первым параметром собственно $method_parameters
         // или вообще передавать в конструктор параметрами три экземпляра:
         // - Route_Params (implements ArrayAccess)
-        // - HTTP_Request (implements ArrayAccess)
-        // - HTTP_Response (implements ArrayAccess)
+        // - Request (HTTP) (implements ArrayAccess)
+        // - Response (HTTP) (implements ArrayAccess)
         // это нам даст ОО-подход к $_REQUEST итд.
         if (!empty($actor)) {
             call_user_func_array($actor, $method_parameters); // @todo: invoke actor
