@@ -120,6 +120,16 @@ class AppRouter implements AppRouterInterface
     private static array $instances_middlewares = [];
 
     /**
+     * Инстансы классов, переданных в AppRouter через имитацию механизма Container
+     * Содержат XXX::class => <instance>
+     *
+     * Данные в массив добавляются через метод addHandler() ( + addMiddlewareHandler ?)
+     *
+     * @var array
+     */
+    private static array $instances = [];
+
+    /**
      * @var array
      */
     public static array $stack_aliases = [];
@@ -284,6 +294,34 @@ class AppRouter implements AppRouterInterface
     }
 
     /**
+     * Добавляет хэндлер-интанс по имени класса в массив предопределенных до роутига инстансов, что
+     * позволяет инстанциировать обработчики роутов заранее.
+     *
+     * Имена должны передаваться с FQDN
+     *
+     * @param string $name
+     * @param object|callable $class
+     * @return void
+     */
+    public static function addHandler(string $name, object|callable $class):void
+    {
+        self::$instances[ $name ] = $class;
+    }
+
+    /**
+     * Добавляет хэндлер-инстанс по имени класса в массив посредников.
+     * Это позволяет инстанциировать обработчик посредника заранее.
+     *
+     * @param string $name
+     * @param object|callable $class
+     * @return void
+     */
+    public static function addHandlerMiddleware(string $name, object|callable $class):void
+    {
+        self::$instances_middlewares[ $name ] = $class;
+    }
+
+    /**
      * Общий метод создания роута
      *
      * @param string $httpMethod
@@ -319,42 +357,42 @@ class AppRouter implements AppRouterInterface
     }
 
 
-    public static function get($route, $handler, $name = null)
+    public static function get($route, $handler, $name = null): void
     {
         self::addRouteForMethod('GET', $route, $handler, $name);
     }
 
-    public static function post($route, $handler, $name = null)
+    public static function post($route, $handler, $name = null): void
     {
         self::addRouteForMethod('POST', $route, $handler, $name);
     }
 
-    public static function put($route, $handler, $name = null)
+    public static function put($route, $handler, $name = null): void
     {
         self::addRouteForMethod('PUT', $route, $handler, $name);
     }
 
-    public static function patch($route, $handler, $name = null)
+    public static function patch($route, $handler, $name = null): void
     {
         self::addRouteForMethod('PATCH', $route, $handler, $name);
     }
 
-    public static function delete($route, $handler, $name = null)
+    public static function delete($route, $handler, $name = null): void
     {
         self::addRouteForMethod('DELETE', $route, $handler, $name);
     }
 
-    public static function head($route, $handler, $name = null)
+    public static function head($route, $handler, $name = null): void
     {
         self::addRouteForMethod('HEAD', $route, $handler, $name);
     }
 
-    public static function options($route, $handler, $name = null)
+    public static function options($route, $handler, $name = null): void
     {
         self::addRouteForMethod('OPTIONS', $route, $handler, $name);
     }
 
-    public static function any($route, $handler, $name = null)
+    public static function any($route, $handler, $name = null): void
     {
         if (is_null($route) || is_null($handler)) {
             return;
@@ -597,22 +635,11 @@ class AppRouter implements AppRouterInterface
         // Route Rule доступен только для Matched-роутов - 3=extra parameters - он всегда есть и не пустой
         self::$routeRule = $rule = $routeInfo[3];
 
-        $actor = self::compileHandler($handler, false, 'default');
-
-        // Handler пустой или некорректный
-        if (empty($handler) && !self::$option_allow_empty_handlers) {
-            throw new AppRouterHandlerError("Handler not found or empty", 500, [
-                'request'   =>  self::$httpMethod . ' ' . self::$uri,
-                'uri'       =>  self::$uri,
-                'method'    =>  self::$httpMethod,
-                'info'      =>  self::$routeInfo,
-                'rule'      =>  self::$routeRule,
-                // 'rule'      =>  [                   'backtrace'     =>  \debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[0] ]
-            ]);
-        }
-
         /**
-         * Посредники ПЕРЕД
+         * Посредники ПЕРЕД - они будут вызваны даже если реальный обработчик с ошибкой или неправильный.
+         *
+         * Если делать иначе - то идет большая избыточность кода - нужно сначала валидировать хэндлер без вызова, а потом
+         * только вызвать.
          *
          * @var Stack $middlewares_before
          */
@@ -625,7 +652,7 @@ class AppRouter implements AppRouterInterface
                 $middleware_handler = $middlewares_before->pop();
 
                 if (!is_null($middleware_handler)) {
-                    $before = self::compileHandler($middleware_handler, true, 'before');
+                    $before = self::compileHandlerMiddleware($middleware_handler);
                     if (is_callable($before)) {
                         call_user_func_array($before, [ self::$uri, self::$routeInfo ] );
                     }
@@ -633,6 +660,23 @@ class AppRouter implements AppRouterInterface
                     unset($before);
                 }
             } while (!$middlewares_before->isEmpty());
+        }
+
+        // На стадии компиляции хэндлера происходит инстанциирование.
+        // По-хорошему, надо это разделить - на компиляцию, проверку и инстанциирование
+
+        $actor = self::compileHandler($handler, false, 'default');
+
+        // Handler пустой или некорректный
+        if (empty($handler) && !self::$option_allow_empty_handlers) {
+            throw new AppRouterHandlerError("Handler not found or empty", 500, [
+                'request'   =>  self::$httpMethod . ' ' . self::$uri,
+                'uri'       =>  self::$uri,
+                'method'    =>  self::$httpMethod,
+                'info'      =>  self::$routeInfo,
+                'rule'      =>  self::$routeRule,
+                // 'rule'      =>  [                   'backtrace'     =>  \debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[0] ]
+            ]);
         }
 
         // c PHP8 поведение можно поменять?
@@ -658,7 +702,7 @@ class AppRouter implements AppRouterInterface
                 $middleware_handler = $middlewares_after->pop();
 
                 if (!is_null($middleware_handler)) {
-                    $after = self::compileHandler($middleware_handler, true, 'after');
+                    $after = self::compileHandlerMiddleware($middleware_handler);
                     if (is_callable($after)) {
                         call_user_func_array($after, [ self::$uri, self::$routeInfo ] );
                     }
@@ -824,9 +868,43 @@ class AppRouter implements AppRouterInterface
         return true;
     }
 
+    private static function compileHandlerMiddleware($handler): array|\Closure|string
+    {
+        if (empty($handler)) {
+            return [];
+        }
+
+        if ($handler instanceof \Closure) {
+            return $handler;
+        }
+
+        if (is_array($handler)) {
+            $class = $handler[0];
+            $method = $handler[1] ?? '__invoke';
+        } elseif (is_string($handler) && str_contains($handler, '@')) {
+            list($class, $method) = Helper::explode($handler, [null, '__invoke'], '@');
+        } else {
+            // остался вариант "функция"
+            self::checkFunctionExists($handler);
+            return $handler;
+        }
+
+        self::checkClassExists($class);
+        self::checkMethodExists($class, $method);
+
+        if (array_key_exists($class, self::$instances_middlewares)) {
+            $i_class = self::$instances_middlewares[$class];
+        } else {
+            $i_class = self::$instances_middlewares[$class] = new $class();
+        }
+
+        return [ $i_class, $method ];
+    }
+
     /**
      * Компилирует хэндлер из строчки, замыкания или массива [класс, метод] в действующий хэндлер
-     * с отловом ошибок несуществования роута
+     * с отловом ошибок несуществования роута. Этот метод вызывается только для целевых вызовов,
+     * хэндлер посредника компилируется методом compileHandlerMiddleware()
      *
      * @param $handler
      * @param bool $is_middleware
@@ -845,7 +923,6 @@ class AppRouter implements AppRouterInterface
 
         // [ \Path\To\Class:class, "method" ]
         if (is_array($handler)) {
-            // [$class, $method] = $handler + [null, '__invoke']; // Recommended by DeepSeek
 
             if (count($handler) == 2) {
                 list($class, $method) = $handler;
@@ -857,24 +934,13 @@ class AppRouter implements AppRouterInterface
             self::checkClassExists($class);
             self::checkMethodExists($class, $method);
 
-            if ($is_middleware) {
-                if (array_key_exists($class, self::$instances_middlewares)) {
-                    $i_class = self::$instances_middlewares[$class];
-                } else {
-                    $i_class = self::$instances_middlewares[$class] = new $class();
-                }
+            //@todo: тут надо бы передавать параметры в конструктор, всякие HTTP_REQUEST, HTTP_RESPONSE
+
+            if (array_key_exists($class, self::$instances)) {
+                $i_class = self::$instances[$class];
             } else {
-                // не миддлвар, а целевой вызов.
-                $i_class = new $class(); //@todo: тут надо бы передавать параметры в конструктор, всякие HTTP_REQUEST, HTTP_RESPONSE
+                $i_class = new $class();
             }
-            /*
-            // Deepseek change:
-            if ($is_middleware) {
-                $i_class = self::$instances_middlewares[$class] ??= new $class();
-                return [$i_class, $method];
-            }
-            return [new $class(), $method];
-             */
 
             return [ $i_class, $method ];
         }
@@ -887,41 +953,29 @@ class AppRouter implements AppRouterInterface
             self::checkClassExists($class);
             self::checkMethodExists($class, $method);
 
-            if ($is_middleware) {
-                if (array_key_exists($class, self::$instances_middlewares)) {
-                    $i_class = self::$instances_middlewares[$class];
+            try {
+                $reflection = new \ReflectionClass($class);
+                $reflected_method = $reflection->getMethod($method);
+
+                if ($reflected_method->isStatic()) {
+                    $handler = [ $class, $method ];
                 } else {
-                    $i_class = self::$instances_middlewares[$class] = new $class();
+                    //@todo: тут надо бы передавать параметры в конструктор, всякие HTTP_REQUEST, HTTP_RESPONSE
+                    $handler = [ new $class(), $method ];
                 }
 
-                $handler = [ $i_class, $method ];
+            } catch (\ReflectionException $e) {
+                // метод не существует!
+                // но это исключение никогда не будет кинуто, потому что наличие метода проверено выше
 
-            } else {
-                // не миддлвар, а целевой вызов.
-                try {
-                    $reflection = new \ReflectionClass($class);
-                    $reflected_method = $reflection->getMethod($method);
-
-                    if ($reflected_method->isStatic()) {
-                        $handler = [ $class, $method ];
-                    } else {
-                        //@todo: тут надо бы передавать параметры в конструктор, всякие HTTP_REQUEST, HTTP_RESPONSE
-                        $handler = [ new $class(), $method ];
-                    }
-
-                } catch (\ReflectionException $e) {
-                    // метод не существует!
-                    // но это исключение никогда не будет кинуто, потому что наличие метода проверено выше
-
-                    self::$logger->error("Method '{$method}' not defined at '{$class}'", [ self::$uri, self::$httpMethod, $class ]);
-                    throw new AppRouterHandlerError("Method '{$method}' not defined at '{$class}'", 500, [
-                        'request'   =>  self::$httpMethod . ' ' . self::$uri,
-                        'uri'       =>  self::$uri,
-                        'method'    =>  self::$httpMethod,
-                        'info'      =>  self::$routeInfo,
-                        'rule'      =>  self::$routeRule
-                    ]);
-                }
+                self::$logger->error("Method '{$method}' not defined at '{$class}'", [ self::$uri, self::$httpMethod, $class ]);
+                throw new AppRouterHandlerError("Method '{$method}' not defined at '{$class}'", 500, [
+                    'request'   =>  self::$httpMethod . ' ' . self::$uri,
+                    'uri'       =>  self::$uri,
+                    'method'    =>  self::$httpMethod,
+                    'info'      =>  self::$routeInfo,
+                    'rule'      =>  self::$routeRule
+                ]);
             }
 
             return $handler;

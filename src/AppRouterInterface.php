@@ -73,13 +73,36 @@ interface AppRouterInterface
     public static function setMiddlewaresNamespace(string $namespace = ''): void;
 
     /**
+     * Добавляет хэндлер-интанс по имени класса в массив предопределенных до роутига инстансов, что
+     * позволяет инстанциировать обработчики роутов заранее.
+     *
+     * Имена должны передаваться с FQDN
+     *
+     * @param string $name
+     * @param object|callable $class
+     * @return void
+     */
+    public static function addHandler(string $name, object|callable $class):void;
+
+    /**
+     * Добавляет хэндлер-инстанс по имени класса в массив посредников.
+     * Это позволяет инстанциировать обработчик посредника заранее.
+     *
+     * @param string $name
+     * @param object|callable $class
+     * @return void
+     */
+    public static function addHandlerMiddleware(string $name, object|callable $class):void;
+
+    /**
      * Helper method GET
      *
      * @param $route
      * @param $handler
      * @param $name - route internal name
+     * @return void
      */
-    public static function get($route, $handler, $name = null);
+    public static function get($route, $handler, $name = null): void;
 
     /**
      * Helper method POST
@@ -87,8 +110,9 @@ interface AppRouterInterface
      * @param $route
      * @param $handler
      * @param null $name
+     * @return void
      */
-    public static function post($route, $handler, $name = null);
+    public static function post($route, $handler, $name = null): void;
 
     /**
      * Helper method PUT
@@ -96,8 +120,9 @@ interface AppRouterInterface
      * @param $route
      * @param $handler
      * @param null $name
+     * @return void
      */
-    public static function put($route, $handler, $name = null);
+    public static function put($route, $handler, $name = null): void;
 
     /**
      * Helper method PATCH
@@ -105,8 +130,9 @@ interface AppRouterInterface
      * @param $route
      * @param $handler
      * @param null $name
+     * @return void
      */
-    public static function patch($route, $handler, $name = null);
+    public static function patch($route, $handler, $name = null): void;
 
     /**
      * Helper method DELETE
@@ -114,8 +140,9 @@ interface AppRouterInterface
      * @param $route
      * @param $handler
      * @param null $name
+     * @return void
      */
-    public static function delete($route, $handler, $name = null);
+    public static function delete($route, $handler, $name = null): void;
 
     /**
      * Helper method HEAD
@@ -123,18 +150,29 @@ interface AppRouterInterface
      * @param $route
      * @param $handler
      * @param null $name
+     * @return void
      */
-    public static function head($route, $handler, $name = null);
+    public static function head($route, $handler, $name = null): void;
+
+    /**
+     * Helper method OPTIONS
+     *
+     * @param $route
+     * @param $handler
+     * @param $name
+     * @return void
+     */
+    public static function options($route, $handler, $name = null): void;
 
     /**
      * Устанавливает роут для ВСЕХ методов
      *
      * @param $route
      * @param $handler
-     * @param $name
-     * @return mixed
+     * @param null $name
+     * @return void
      */
-    public static function any($route, $handler, $name = null);
+    public static function any($route, $handler, $name = null): void;
 
     /**
      * Add route method
