@@ -117,7 +117,7 @@ class Helper implements AppRouterHelperInterface
         $result = [];
         if ($middlewares instanceof \Arris\AppRouter\Stack) {
             foreach ($middlewares->toArray() as $middleware) {
-                if (is_array($middleware)) {
+                if (is_array($middleware) && !empty($middleware)) {
                     $result[] = $middleware[0] . "@" . ( $middleware[1] ?? '__invoke' );
                 }
                 if (is_callable($middleware)) {
