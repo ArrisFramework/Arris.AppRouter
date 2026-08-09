@@ -7,7 +7,7 @@ use Arris\Exceptions\{
     AppRouterNotFoundException
 };
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
 class StaticClass
 {
@@ -156,7 +156,7 @@ try {
                     AppRouter::get('/all/', 'DynamicClass@all', 'admin.users.all');
                     AppRouter::get('/invoke/', 'DynamicClass@' , 'admin.users.invoke');
                     AppRouter::get('/list/', [DynamicClass::class, 'method_not_exist'], 'admin.users.list');
-                    AppRouter::get('/empty/[{id:\d+}[/]]', /*[ DynamicClass::class, 'create']*/ [] , 'admin.users.empty');
+                    AppRouter::get('/empty/[{id:\d+}[/]]', [ DynamicClass::class, 'create'] , 'admin.users.empty');
                 }
             );
         }
@@ -224,12 +224,13 @@ try {
         }
     }
 
+/* 
     echo "<hr>";
     echo "Так как оба роута не найдены, вместо них будет показана строчка: " . DEFAULT_ROUTE . ' <br>' .PHP_EOL;
     echo AppRouter::getRouter('root.userid', [ 'userid' => 15 ]) . '<br>';
     echo AppRouter::getRouter('root.username', [ 'username' => 'wombat' ]) . '<br>';
     echo "<hr>";
-
+*/
     // d(AppRouter::getRoutingRules());
 
     // d(AppRouter::getRouter('*'));
