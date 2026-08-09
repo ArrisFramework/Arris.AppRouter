@@ -5,15 +5,15 @@ server {
     listen 80;
     server_name router.local;
 
-    root /var/www.arris/Arris.AppRouter/tests/;
+    root /var/www.arris/Arris.AppRouter/;
 
-    index index.php index.html;
+    index test_routing.php;
 
     access_log /var/www.arris/Arris.AppRouter/~access.log;
     error_log /var/www.arris/Arris.AppRouter/~error.log;
 
     location / {
-        try_files $uri $uri/ /index.php?$query_string;
+        try_files $uri $uri/ /test_routing.php?$query_string;
     }
 
     location ~ \.php$ {
