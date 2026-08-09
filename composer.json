@@ -14,6 +14,11 @@
             "Arris\\AppRouter\\": "src/AppRouter"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Arris\\AppRouter\\Tests\\": "tests/"
+        }
+    },
     "authors": [
         {
             "name": "Karel Wintersky",
@@ -25,7 +30,8 @@
         "psr/log": "*"
     },
     "require-dev": {
-        "karelwintersky/arris": "*"
+        "karelwintersky/arris": "*",
+        "phpunit/phpunit": "^11"
     },
     "suggest": {
         "karelwintersky/arris": "Arris µFramework core",

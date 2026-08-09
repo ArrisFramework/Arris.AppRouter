@@ -10,6 +10,7 @@ tests               export-ignore
 TESTING.md          export-ignore
 ~access.log         export-ignore
 ~error.log          export-ignore
+phpunit.xml         export-ignore
 
 
 
