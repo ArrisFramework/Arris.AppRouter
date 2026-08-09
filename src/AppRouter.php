@@ -24,6 +24,7 @@ use function is_string;
 use function md5;
 use function method_exists;
 use function preg_replace;
+use function preg_replace_callback;
 use function preg_split;
 use function trim;
 use function rawurldecode;
@@ -286,13 +287,6 @@ class AppRouter implements AppRouterInterface
         self::$current_namespace = $namespace;
     }
 
-
-    public static function setMiddlewaresNamespace(string $namespace = ''):void
-    {
-        // return true;
-        // self::$middlewares_namespace = $namespace;
-    }
-
     /**
      * Добавляет хэндлер-интанс по имени класса в массив предопределенных до роутига инстансов, что
      * позволяет инстанциировать обработчики роутов заранее.
@@ -489,26 +483,30 @@ class AppRouter implements AppRouterInterface
             $group_have_after_middleware = true;
         }
 
-        if (is_callable($callback)) {
-            $callback();
-        }
+        try {
+            if (is_callable($callback)) {
+                $callback();
+            }
+        } finally {
+            // стеки восстанавливаются в любом случае, даже если коллбэк группы бросил исключение;
+            // само исключение при этом уходит дальше по иерархии
+            if ($group_have_before_middleware) {
+                self::$stack_middlewares_before->pop();
+            }
 
-        if ($group_have_before_middleware) {
-            self::$stack_middlewares_before->pop();
-        }
+            if ($group_have_after_middleware) {
+                self::$stack_middlewares_after->pop();
+            }
 
-        if ($group_have_after_middleware) {
-            self::$stack_middlewares_after->pop();
-        }
+            if ($_setNamespace) {
+                self::$stack_namespace->pop();
+                self::$current_namespace = self::$stack_namespace->implode('\\');
+            }
 
-        if ($_setNamespace) {
-            self::$stack_namespace->pop();
-            self::$current_namespace = self::$stack_namespace->implode('\\');
-        }
-
-        if ($_setPrefix) {
-            self::$stack_prefix->pop();
-            self::$current_prefix = self::$stack_prefix->implode();
+            if ($_setPrefix) {
+                self::$stack_prefix->pop();
+                self::$current_prefix = self::$stack_prefix->implode();
+            }
         }
 
         return true;
@@ -532,31 +530,18 @@ class AppRouter implements AppRouterInterface
         if (array_key_exists($name, self::$route_names)) {
             $route = self::$route_names[ $name ];
 
-            // заменяем именованные группы-плейсхолдеры на переданные переменные?
+            // заменяем именованные группы-плейсхолдеры на переданные переменные
+            // через preg_replace_callback, чтобы значения с `$`/`\` не трактовались как backreference,
+            // а плейсхолдеры с регуляркой вида {name:regex} тоже заменялись
             if (!empty($parts)) {
-                foreach ($parts as $key => $value) {
-                    $pattern = "/\[?\{({$key})(\:\\\\\w+\+)?\}\]?/";
-                    $route = preg_replace(
-                        $pattern,
-                        $value,
-                        $route
-                    );
-                }
+                $route = preg_replace_callback(
+                    '~\[?\{([a-zA-Z_][a-zA-Z0-9_-]*)(?::[^}]*)?\}\]?~',
+                    static function (array $matches) use ($parts): string {
+                        return array_key_exists($matches[1], $parts) ? (string)$parts[$matches[1]] : $matches[0];
+                    },
+                    $route
+                );
             }
-            /*
-            // Qwen3-coder предлает такое решение:
-
-            if (!empty($parts)) {
-                foreach ($parts as $key => $value) {
-                    $pattern = "/\[?\{(" . preg_quote($key, '/') . ")(\:[\\\w+\+])?\}\]?/";
-                    $route = preg_replace(
-                        $pattern,
-                        (string)$value, // Приведение к строке для безопасности
-                        $route
-                    );
-                }
-            }
-            */
 
             // заменяем необязательный слэш в конце на обязательный
             if (self::$option_getroute_replace_optional_slash_to_mandatory) {

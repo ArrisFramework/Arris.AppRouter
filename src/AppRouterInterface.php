@@ -64,15 +64,6 @@ interface AppRouterInterface
     public static function setDefaultNamespace(string $namespace = ''):void;
 
     /**
-     * Указывает нэймспейс для миддлваров-посредников
-     * @todo: НЕ РЕАЛИЗОВАНО
-     *
-     * @param string $namespace
-     * @return void
-     */
-    public static function setMiddlewaresNamespace(string $namespace = ''): void;
-
-    /**
      * Добавляет хэндлер-интанс по имени класса в массив предопределенных до роутига инстансов, что
      * позволяет инстанциировать обработчики роутов заранее.
      *
