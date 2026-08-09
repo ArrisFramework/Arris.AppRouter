@@ -208,13 +208,15 @@ class AppRouter implements AppRouterInterface
         string $prefix = '',
         bool $allowEmptyGroups = false,
         bool $allowEmptyHandlers = false,
+        ?array $customDataSource = null,
     ) {
         self::init(
             $logger,
             namespace: $namespace,
             prefix: $prefix,
             allowEmptyGroups: $allowEmptyGroups,
-            allowEmptyHandlers: $allowEmptyHandlers
+            allowEmptyHandlers: $allowEmptyHandlers,
+            customDataSource: $customDataSource
         );
     }
 
@@ -227,21 +229,25 @@ class AppRouter implements AppRouterInterface
         string $prefix = '',
         bool $allowEmptyGroups = false,
         bool $allowEmptyHandlers = false,
-        bool $useAliases = false
+        bool $useAliases = false,
+        ?array $customDataSource = null
     )
     {
-        // unimplemented options in constructor
-        // string $middleware_namespace = '',
-        self::$route_parts = preg_split("/\/+/", \preg_replace("/(\?.*)/", "", trim($_SERVER['REQUEST_URI'], '/')));
+        // $customDataSource - эмулятор $_SERVER как источника данных запроса (ключи массива
+        // соответствуют $_SERVER: REQUEST_URI, REQUEST_METHOD). Позволяет запускать роутер
+        // из CLI и покрывать тестами без HTTP-суперглобалов.
+        $customDataSource ??= $_SERVER;
+
+        self::$route_parts = preg_split("/\/+/", \preg_replace("/(\?.*)/", "", trim($customDataSource['REQUEST_URI'] ?? '/', '/')));
 
         self::$logger
             = ($logger instanceof LoggerInterface)
             ? $logger
             : new NullLogger();
 
-        self::$httpMethod = $_SERVER['REQUEST_METHOD'];
+        self::$httpMethod = $customDataSource['REQUEST_METHOD'] ?? 'GET';
 
-        $uri = $_SERVER['REQUEST_URI'];
+        $uri = $customDataSource['REQUEST_URI'] ?? '/';
         $uri = strstr($uri, '?', true) ?: $uri;
 
         self::$uri = rawurldecode($uri);

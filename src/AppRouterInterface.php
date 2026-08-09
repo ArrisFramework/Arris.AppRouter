@@ -21,6 +21,7 @@ interface AppRouterInterface
         string $prefix = '',
         bool $allowEmptyGroups = false,
         bool $allowEmptyHandlers = false,
+        ?array $customDataSource = null,
     );
 
     /**
@@ -33,6 +34,9 @@ interface AppRouterInterface
      * @param bool $allowEmptyGroups
      * @param bool $allowEmptyHandlers
      * @param bool $useAliases
+     * @param array|null $customDataSource - источник данных запроса (эмулятор $_SERVER);
+     *     ключи массива соответствуют $_SERVER: REQUEST_URI, REQUEST_METHOD;
+     *     null - используется $_SERVER
      */
     public static function init(
         LoggerInterface $logger = null,
@@ -40,7 +44,8 @@ interface AppRouterInterface
         string $prefix = '',
         bool $allowEmptyGroups = false,
         bool $allowEmptyHandlers = false,
-        bool $useAliases = false
+        bool $useAliases = false,
+        ?array $customDataSource = null
     );
 
     /**
