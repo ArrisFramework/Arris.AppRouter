@@ -29,6 +29,26 @@ interface AppRouterHelperInterface
     public static function dumpRoutingRulesCLI(array $routingRules, bool $withMiddlewares = false):string;
 
     /**
+     * Превращает дамп алиасов (массив `name => regexp`) в WEB-таблицу.
+     *
+     * echo Helper::dumpAliasesWeb(AppRouter::getAliases());
+     *
+     * @param array $aliases
+     * @return string
+     */
+    public static function dumpAliasesWeb(array $aliases): string;
+
+    /**
+     * Превращает дамп алиасов (массив `name => regexp`) в CLI-таблицу.
+     *
+     * echo Helper::dumpAliasesCLI(AppRouter::getAliases());
+     *
+     * @param array $aliases
+     * @return string
+     */
+    public static function dumpAliasesCLI(array $aliases): string;
+
+    /**
      * Выполняет explode строки роута с учетом дефолтной маски
      * Заменяет list($a, $b) = explode(separator, string) с дефолтными значениями элементов
      * Хотел назвать это replace_array_callback(), но передумал

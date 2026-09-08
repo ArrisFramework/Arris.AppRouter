@@ -209,6 +209,53 @@ class Helper implements AppRouterHelperInterface
         return $output;
     }
 
+    /**
+     * Превращает дамп алиасов (массив `name => regexp`) в WEB-таблицу.
+     *
+     * @param array $aliases - AppRouter::getAliases()
+     * @return string
+     */
+    public static function dumpAliasesWeb(array $aliases): string
+    {
+        $table = "<table border='1' cellpadding='5' cellspacing='0' width='100%' style='width:100%; border-collapse: collapse;'>";
+        $table .= "<thead><tr>
+            <th>Alias</th>
+            <th>Regexp</th>
+        </tr></thead><tbody>";
+
+        foreach ($aliases as $name => $regexp) {
+            $table .= "<tr>
+                <td>{$name}</td>
+                <td><code>{$regexp}</code></td>
+            </tr>";
+        }
+
+        $table .= "</tbody></table>";
+        return $table;
+    }
+
+    /**
+     * Превращает дамп алиасов (массив `name => regexp`) в CLI-таблицу.
+     *
+     * @param array $aliases - AppRouter::getAliases()
+     * @return string
+     */
+    public static function dumpAliasesCLI(array $aliases): string
+    {
+        if (empty($aliases)) {
+            return "Aliases: none\n";
+        }
+
+        $output = "Alias\tRegexp\n";
+        $output .= str_repeat("-", 50) . "\n";
+
+        foreach ($aliases as $name => $regexp) {
+            $output .= sprintf("%-20s %s\n", $name, $regexp);
+        }
+
+        return $output;
+    }
+
     public static function explode($income, array $default = [ null, '__invoke' ], string $separator = '@'): array
     {
         return array_map(static function($first, $second) {

@@ -1123,8 +1123,8 @@ class AppRouter implements AppRouterInterface
     public static function addAlias(array|string $name, ?string $regexp = null): void
     {
         if (is_array($name)) {
-            foreach ($name as $_v) {
-                self::addAlias(key($_v), current($_v));
+            foreach ($name as $_name => $_regexp) {
+                self::addAlias($_name, $_regexp);
             }
         } elseif (!is_null($regexp)) {
             self::$stack_aliases[$name] = $regexp;
