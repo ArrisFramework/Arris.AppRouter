@@ -279,6 +279,7 @@ class AppRouter implements AppRouterInterface
 
     public static function setOption(string $name, $value = null):void
     {
+        //@todo: опция, которая "схлопывает" множественные слеши до этапа dispatch() `dishes//update` -> `dishes/update`
         match ($name) {
             self::OPTION_ALLOW_EMPTY_GROUPS     => self::$option_allow_empty_groups     = (bool)$value,
             self::OPTION_ALLOW_EMPTY_HANDLERS   => self::$option_allow_empty_handlers   = (bool)$value,
