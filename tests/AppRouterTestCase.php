@@ -36,6 +36,7 @@ abstract class AppRouterTestCase extends TestCase
             'option_allow_empty_groups'  => false,
             'option_allow_empty_handlers'=> false,
             'option_use_aliases'         => false,
+            'option_collapse_slashes'    => false,
         ];
 
         foreach ($defaults as $name => $value) {

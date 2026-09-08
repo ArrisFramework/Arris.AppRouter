@@ -36,6 +36,7 @@ class AppRouter implements AppRouterInterface
     const OPTION_ALLOW_EMPTY_HANDLERS = 'allowEmptyHandlers';
     const OPTION_DEFAULT_ROUTE = 'getRouterDefaultValue';
     const OPTION_USE_ALIASES = 'useAliases';
+    const OPTION_COLLAPSE_DOUBLE_SLASHES = 'collapseDoubleSlashes';
 
     public const ALL_HTTP_METHODS = [
         'GET',
@@ -209,6 +210,14 @@ class AppRouter implements AppRouterInterface
     private static bool $option_use_aliases = false;
 
     /**
+     * Схлопывать ли последовательности `/` в URI до одного слэша перед dispatch()? (FALSE)
+     * Например `tavern//add` -> `tavern/add`.
+     *
+     * @var bool
+     */
+    private static bool $option_collapse_slashes = false;
+
+    /**
      * @inheritDoc
      */
     public function __construct(
@@ -290,12 +299,12 @@ class AppRouter implements AppRouterInterface
 
     public static function setOption(string $name, $value = null):void
     {
-        //@todo: опция, которая "схлопывает" множественные слеши до этапа dispatch() `dishes//update` -> `dishes/update`
         match ($name) {
             self::OPTION_ALLOW_EMPTY_GROUPS     => self::$option_allow_empty_groups     = (bool)$value,
             self::OPTION_ALLOW_EMPTY_HANDLERS   => self::$option_allow_empty_handlers   = (bool)$value,
             self::OPTION_DEFAULT_ROUTE          => self::$option_getroute_default_value = $value,
             self::OPTION_USE_ALIASES            => self::$option_use_aliases            = (bool)$value,
+            self::OPTION_COLLAPSE_DOUBLE_SLASHES=> self::$option_collapse_slashes       = (bool)$value,
             default => null,
         };
     }
@@ -671,6 +680,12 @@ class AppRouter implements AppRouterInterface
 
     public static function dispatch()
     {
+        // Если включена опция — схлопываем последовательности `/` в URI до одного слэша
+        // (например `tavern//add` -> `tavern/add`), чтобы такие пути отлавливались роутером.
+        if (self::$option_collapse_slashes) {
+            self::$uri = preg_replace('~/{2,}~', '/', self::$uri);
+        }
+
         // Если URI попадает под какой-либо паттерн исключения — тихо выходим,
         // НЕ бросая исключений. Такие запросы обрабатываются веб-сервером.
         foreach (self::$exclusions as $pattern) {
