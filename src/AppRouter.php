@@ -151,6 +151,15 @@ class AppRouter implements AppRouterInterface
     private static array $routeRule = [];
 
     /**
+     * Список паттернов (уже скомпилированных в regex), по которым URI исключается из роутинга.
+     * Если REQUEST_URI совпадает с любым из них — dispatch() тихо возвращается,
+     * не кидая исключений: обработку запроса берёт на себя веб-сервер.
+     *
+     * @var array<string>
+     */
+    private static array $exclusions = [];
+
+    /**
      * STUB для внутренних опций
      *
      * @var array
@@ -274,6 +283,8 @@ class AppRouter implements AppRouterInterface
 
         self::$stack_aliases = [];
 
+        self::$exclusions = [];
+
         // self::$routeReplacePattern = $routeReplacePattern;
     }
 
@@ -292,6 +303,92 @@ class AppRouter implements AppRouterInterface
     public static function setDefaultNamespace(string $namespace = ''):void
     {
         self::$current_namespace = $namespace;
+    }
+
+    /**
+     * Задаёт паттерны-исключения: URI, попадающие под любой из них, полностью
+     * игнорируются роутером при dispatch() — вызывается тихий выход без
+     * исключения AppRouterNotFoundException/MethodNotAllowed. Ответственность
+     * за обработку таких запросов берёт на себя веб-сервер.
+     *
+     * Оба аргумента дополняют уже накопленный список исключений (не перезаписывают).
+     *
+     * @param array<string> $regexes  готовые regex-паттерны (используются как есть)
+     * @param array<string> $globs    glob-паттерны, конвертируются в regex:
+     *                                  `**` -> `.*`, `*` -> `[^/]*`, `?` -> `[^/]`
+     * @return void
+     */
+    public static function exclude(array $regexes = [], array $globs = []): void
+    {
+        foreach ($regexes as $regex) {
+            self::$exclusions[] = self::normalizeRegex($regex);
+        }
+
+        foreach ($globs as $glob) {
+            self::$exclusions[] = self::globToRegex($glob);
+        }
+    }
+
+    /**
+     * Приводит передаваемый пользователем паттерн к виду, пригодному для preg_match().
+     *
+     * - паттерн без разделителей (`/storage/.*`) оборачивается в `~...~`
+     * - паттерн с разделителями (`#/storage/.*#i`) используется как есть
+     *
+     * @param string $pattern
+     * @return string
+     */
+    private static function normalizeRegex(string $pattern): string
+    {
+        // паттерн уже с разделителями вида `DEL(.*)DEL[modifiers]`? тогда как есть
+        if (\preg_match('~^([^a-zA-Z0-9\\\\\s])(.*)\1[imsxADSUXJu]*$~s', $pattern) === 1) {
+            return $pattern;
+        }
+
+        // иначе — паттерн без разделителей: оборачиваем в `~...~`
+        return '~' . $pattern . '~';
+    }
+
+    /**
+     * Конвертирует glob-паттерн в regex.
+     *
+     * - `**` -> `.*` (любые символы, включая `/`)
+     * - `*`  -> `[^/]*` (любые символы, кроме `/`)
+     * - `?`  -> `[^/]` (один символ, кроме `/`)
+     * - всё остальное экранируется через preg_quote()
+     *
+     * @param string $glob
+     * @return string
+     */
+    private static function globToRegex(string $glob): string
+    {
+        $regex = '';
+        $length = \strlen($glob);
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $glob[$i];
+
+            // `**` -> `.*`
+            if ($char === '*' && ($glob[$i + 1] ?? null) === '*') {
+                $regex .= '.*';
+                $i++;
+                continue;
+            }
+
+            switch ($char) {
+                case '*':
+                    $regex .= '[^/]*';
+                    break;
+                case '?':
+                    $regex .= '[^/]';
+                    break;
+                default:
+                    $regex .= \preg_quote($char, '~');
+                    break;
+            }
+        }
+
+        return '~^' . $regex . '$~';
     }
 
     /**
@@ -574,6 +671,14 @@ class AppRouter implements AppRouterInterface
 
     public static function dispatch()
     {
+        // Если URI попадает под какой-либо паттерн исключения — тихо выходим,
+        // НЕ бросая исключений. Такие запросы обрабатываются веб-сервером.
+        foreach (self::$exclusions as $pattern) {
+            if (preg_match($pattern, self::$uri)) {
+                return;
+            }
+        }
+
         self::$dispatcher = \Arris\AppRouter\FastRoute\FastRoute::recommendedSettings(function (ConfigureRoutes $r){
             foreach (self::$rules as $rule) {
                 $handler

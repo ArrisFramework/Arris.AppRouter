@@ -69,6 +69,16 @@ interface AppRouterInterface
     public static function setDefaultNamespace(string $namespace = ''):void;
 
     /**
+     * Задаёт паттерны-исключения: URI, попадающие под любой из них, полностью
+     * игнорируются роутером при dispatch() — тихий выход без исключений.
+     *
+     * @param array<string> $regexes готовые regex-паттерны
+     * @param array<string> $globs   glob-паттерны (конвертируются в regex)
+     * @return void
+     */
+    public static function exclude(array $regexes = [], array $globs = []): void;
+
+    /**
      * Добавляет хэндлер-интанс по имени класса в массив предопределенных до роутига инстансов, что
      * позволяет инстанциировать обработчики роутов заранее.
      *
